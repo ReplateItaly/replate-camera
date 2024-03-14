@@ -3,6 +3,7 @@ import {
   UIManager,
   Platform,
   type ViewStyle,
+  NativeModules,
 } from 'react-native';
 
 const LINKING_ERROR =
@@ -12,6 +13,7 @@ const LINKING_ERROR =
   '- You are not using Expo Go\n';
 
 type ReplateCameraProps = {
+  // rect: Object;
   color: string;
   style: ViewStyle;
 };
@@ -24,3 +26,18 @@ export const ReplateCameraView =
     : () => {
         throw new Error(LINKING_ERROR);
       };
+
+const ReplateCameraModule = NativeModules.ReplateCameraController
+  ? NativeModules.ReplateCameraController
+  : new Proxy(
+      {},
+      {
+        get() {
+          throw new Error(LINKING_ERROR);
+        },
+      }
+    );
+
+export function takePhoto(): Promise<string> {
+  return ReplateCameraModule.takePhoto();
+}
