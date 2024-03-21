@@ -41,3 +41,11 @@ const ReplateCameraModule = NativeModules.ReplateCameraController
 export function takePhoto(): Promise<string> {
   return ReplateCameraModule.takePhoto();
 }
+
+export function getPhotosCount(): Promise<number> {
+  return ReplateCameraModule.getPhotosCount();
+}
+
+export function isScanComplete(): Promise<boolean> {
+  return ReplateCameraModule.isScanComplete();
+}

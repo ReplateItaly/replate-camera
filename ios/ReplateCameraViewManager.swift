@@ -27,6 +27,8 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     static var spheresModels: [ModelEntity] = []
     static var upperSpheresSet: [Bool] = [Bool](repeating: false, count: 72)
     static var lowerSpheresSet: [Bool] = [Bool](repeating: false, count: 72)
+    static var totalPhotosTaken: Int = 0
+    static var photosFromDifferentAnglesTaken = 0
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -40,6 +42,8 @@ class ReplateCameraView : UIView, ARSessionDelegate {
 //        setupAR()
     }
 
+    
+    
     func requestCameraPermissions(){
 
         if AVCaptureDevice.authorizationStatus(for: .video) ==  .authorized {
@@ -129,8 +133,8 @@ class ReplateCameraView : UIView, ARSessionDelegate {
                     let angle = Float(i) * (Float.pi / 180) * 5 // 10 degrees in radians
                     let x = radius * cos(angle)
                     let z = radius * sin(angle)
-                    var spherePosition = SIMD3<Float>(x, y, z)
-                    var sphereEntity = createSphere(position: spherePosition)
+                    let spherePosition = SIMD3<Float>(x, y, z)
+                    let sphereEntity = createSphere(position: spherePosition)
                     ReplateCameraView.spheresModels.append(sphereEntity)
                     ReplateCameraView.anchorEntity.addChild(sphereEntity)
                 }
@@ -198,6 +202,16 @@ class ReplateCameraView : UIView, ARSessionDelegate {
 @objc(ReplateCameraController)
 class ReplateCameraController: NSObject {
 
+    @objc(getPhotosCount:rejecter:)
+    func getPhotosCount(_ resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void{
+        resolver(ReplateCameraView.totalPhotosTaken)
+    }
+    
+    @objc(isScanComplete:rejecter:)
+    func isScanComplete(_ resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void{
+        resolver(ReplateCameraView.photosFromDifferentAnglesTaken == 144)
+    }
+    
     @objc(takePhoto:rejecter:)
        func takePhoto(_ resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
            
@@ -335,10 +349,16 @@ class ReplateCameraController: NSObject {
             let sphereIndex = Int(floor(angleToAnchor/5))
             var mesh: ModelEntity?
             if(deviceTargetInFocus == 1 && !ReplateCameraView.upperSpheresSet[sphereIndex]){
-                ReplateCameraView.upperSpheresSet[sphereIndex] = true
+                if(!ReplateCameraView.upperSpheresSet[sphereIndex]){
+                    ReplateCameraView.upperSpheresSet[sphereIndex] = true
+                    ReplateCameraView.photosFromDifferentAnglesTaken += 1
+                }
                 mesh = ReplateCameraView.spheresModels[72+sphereIndex]
             }else if(deviceTargetInFocus == 0 && !ReplateCameraView.lowerSpheresSet[sphereIndex]){
-                ReplateCameraView.lowerSpheresSet[sphereIndex] = true
+                if(!ReplateCameraView.lowerSpheresSet[sphereIndex]){
+                    ReplateCameraView.lowerSpheresSet[sphereIndex] = true
+                    ReplateCameraView.photosFromDifferentAnglesTaken += 1
+                }
                 mesh = ReplateCameraView.spheresModels[sphereIndex]
             }
             if (mesh != nil){
