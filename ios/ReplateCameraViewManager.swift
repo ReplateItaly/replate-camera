@@ -339,7 +339,7 @@ class ReplateCameraController: NSObject {
             return nil
         }
         
-        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+//        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
         
         // Get the temporary directory URL
         let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
