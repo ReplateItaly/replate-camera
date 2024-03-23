@@ -18,6 +18,30 @@ class ReplateCameraViewManager: RCTViewManager {
 
 }
 
+extension UIImage {
+    func rotate(radians: Float) -> UIImage {
+        var newSize = CGRect(origin: CGPoint.zero, size: self.size).applying(CGAffineTransform(rotationAngle: CGFloat(radians))).size
+        // Trim off the extremely small float value to prevent core graphics from rounding it up
+        newSize.width = floor(newSize.width)
+        newSize.height = floor(newSize.height)
+        
+        UIGraphicsBeginImageContextWithOptions(newSize, false, self.scale)
+        let context = UIGraphicsGetCurrentContext()!
+        
+        // Move origin to middle
+        context.translateBy(x: newSize.width/2, y: newSize.height/2)
+        // Rotate around middle
+        context.rotate(by: CGFloat(radians))
+        // Draw the image at its center
+        self.draw(in: CGRect(x: -self.size.width/2, y: -self.size.height/2, width: self.size.width, height: self.size.height))
+        
+        let newImage = UIGraphicsGetImageFromCurrentImageContext()!
+        UIGraphicsEndImageContext()
+        
+        return newImage
+    }
+}
+
 class ReplateCameraView : UIView, ARSessionDelegate {
 
     static var arView: ARView!
@@ -212,6 +236,11 @@ class ReplateCameraController: NSObject {
         resolver(ReplateCameraView.photosFromDifferentAnglesTaken == 144)
     }
     
+    @objc(getRemainingAnglesToScan:rejecter:)
+    func getRemainingAnglesToScan(_ resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void{
+        resolver(144 - ReplateCameraView.photosFromDifferentAnglesTaken)
+    }
+    
     @objc(takePhoto:rejecter:)
        func takePhoto(_ resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
            
@@ -220,6 +249,7 @@ class ReplateCameraController: NSObject {
                rejecter("[ReplateCameraController]", "Error saving photo", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil));
                return
            }
+           
            // Assuming you have two points
            let point1 = SIMD3<Float>(anchorNode.position.x,
                                      anchorNode.position.y,
@@ -243,7 +273,6 @@ class ReplateCameraController: NSObject {
                
                let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
                
-               
                let directionToFirstPoint = normalize(point1 - cameraPosition)
                let directionToSecondPoint = normalize(point2 - cameraPosition)
                
@@ -262,6 +291,8 @@ class ReplateCameraController: NSObject {
                print("Is pointing at second point: \(isPointingAtSecondPoint)")
            } else {
                print("Camera transform data not available")
+               rejecter("[ReplateCameraController]", "Camera transform data not available", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
+               return
            }
            
           print("Take photo")
@@ -270,7 +301,9 @@ class ReplateCameraController: NSObject {
                    let ciimg = CIImage(cvImageBuffer: image)
                    let ciImage = ciimg
                    let cgImage = ReplateCameraController.cgImage(from: ciImage)!
-                   let finImage = UIImage(cgImage: cgImage)
+                   let uiImage = UIImage(cgImage: cgImage)
+                   let finImage = uiImage.rotate(radians: .pi/2) // Adjust radians as needed
+
                    print("Saving photo")
                    if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
                        resolver(url.absoluteString)
@@ -279,6 +312,9 @@ class ReplateCameraController: NSObject {
                        return
                    }
                }
+           }else{
+               rejecter("[ReplateCameraController]", "Object not in focus", NSError(domain: "ReplateCameraController", code: 002, userInfo: nil))
+               return
            }
            
            print("Error saving photo")
@@ -289,8 +325,11 @@ class ReplateCameraController: NSObject {
     
     static func cgImage(from ciImage: CIImage) -> CGImage? {
         let context = CIContext(options: nil)
+        
         return context.createCGImage(ciImage, from: ciImage.extent)
     }
+    
+    
     
     static func saveImageAsJPEG(_ image: UIImage) -> URL? {
         // Convert UIImage to Data with JPEG representation
@@ -299,6 +338,8 @@ class ReplateCameraController: NSObject {
             print("Error converting UIImage to JPEG data")
             return nil
         }
+        
+        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
         
         // Get the temporary directory URL
         let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)

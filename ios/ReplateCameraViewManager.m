@@ -22,6 +22,9 @@ RCT_EXTERN_METHOD(getPhotosCount:(RCTPromiseResolveBlock*)resolve
 RCT_EXTERN_METHOD(isScanComplete:(RCTPromiseResolveBlock*)resolve
                  rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(getRemainingAnglesToScan:(RCTPromiseResolveBlock*)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 + (BOOL)requiresMainQueueSetup
 {
     return NO;
