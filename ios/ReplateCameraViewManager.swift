@@ -45,7 +45,6 @@ extension UIImage {
 class ReplateCameraView : UIView, ARSessionDelegate {
 
     static var arView: ARView!
-    static var anchor: ARAnchor!
     static var anchorEntity: AnchorEntity!
     static var model: Entity!
     static var spheresModels: [ModelEntity] = []
@@ -53,20 +52,27 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     static var lowerSpheresSet: [Bool] = [Bool](repeating: false, count: 72)
     static var totalPhotosTaken: Int = 0
     static var photosFromDifferentAnglesTaken = 0
+    static var INSTANCE: ReplateCameraView!
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         requestCameraPermissions()
 //        setupAR()
+        ReplateCameraView.INSTANCE = self
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         requestCameraPermissions()
+        ReplateCameraView.INSTANCE = self
 //        setupAR()
     }
 
-    
+    static func addRecognizer(){
+        let recognizer = UITapGestureRecognizer(target: ReplateCameraView.INSTANCE,
+                                                action: #selector(ReplateCameraView.INSTANCE.viewTapped(_:)))
+        ReplateCameraView.arView.addGestureRecognizer(recognizer)
+    }
     
     func requestCameraPermissions(){
 
@@ -94,55 +100,39 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         print("Width: \(width), Height: \(height)")
         self.setupAR()
     }
-
-    func setupAR() {
-        print("Setup AR")
-        let width = self.frame.width
-        let height = self.frame.height
-        ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
-        ReplateCameraView.arView.backgroundColor = hexStringToUIColor(hexColor: "#32a852")
-        addSubview(ReplateCameraView.arView)
-        ReplateCameraView.arView.session.delegate = self
-        let configuration = ARWorldTrackingConfiguration()
-//        guard let obj = ARReferenceObject.referenceObjects(inGroupNamed: "AR Resource Group",
-//                                                           bundle: nil)
-//        else { fatalError("See no reference object") }
-//        print(obj)
-        configuration.planeDetection = ARWorldTrackingConfiguration.PlaneDetection.horizontal
-        if #available(iOS 16.0, *) {
-            print("recommendedVideoFormatForHighResolutionFrameCapturing")
-            configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.recommendedVideoFormatFor4KResolution ?? ARWorldTrackingConfiguration.supportedVideoFormats[0]
-        } else {
-            print("Alternative high resolution method")
-            let maxResolutionFormat = ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
-                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
-                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
-                return resolution1 < resolution2
-            })!
-            configuration.videoFormat = maxResolutionFormat
-        }
-//        configuration.detectionObjects = obj
-        ReplateCameraView.arView.session.run(configuration)
-    }
-
-    func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
-        print("ANCHOR FOUND")
-        if (ReplateCameraView.anchor == nil){
-            guard let _anchor = anchors.first else { return }
-            ReplateCameraView.anchor =  _anchor
-        }
+    
+    
+    @objc private func viewTapped(_ recognizer: UITapGestureRecognizer) {
+        print("VIEW TAPPED")
+//        guard !ReplateCameraView.arView.canBecomeFocused else {
+//            return
+//        }
+        
+        let tapLocation: CGPoint = recognizer.location(in: ReplateCameraView.arView)
+        let estimatedPlane: ARRaycastQuery.Target = .estimatedPlane
+        let alignment: ARRaycastQuery.TargetAlignment = .horizontal
+        
+        let result: [ARRaycastResult] = ReplateCameraView.arView.raycast(from: tapLocation,
+                                                       allowing: estimatedPlane,
+                                                       alignment: alignment)
+        
+        guard let rayCast: ARRaycastResult = result.first
+        else { return }
+        let anchor = AnchorEntity(raycastResult: rayCast)
+        print("ANCHOR FOUND\n", anchor.transform)
         if (ReplateCameraView.model == nil && ReplateCameraView.anchorEntity == nil){
-            let anchorTransform = ReplateCameraView.anchor.transform
-//            let path = Bundle.main.path(forResource: "anchor", ofType: "usdz")!
-//            let url = URL(fileURLWithPath: path)
-//            let entity: ModelEntity = try! ModelEntity.loadModel(contentsOf: url)
+            ReplateCameraView.anchorEntity = anchor
+            let anchorTransform = anchor.transform
+            //            let path = Bundle.main.path(forResource: "anchor", ofType: "usdz")!
+            //            let url = URL(fileURLWithPath: path)
+            //            let entity: ModelEntity = try! ModelEntity.loadModel(contentsOf: url)
             
-//            if #available(iOS 15.0, *) {
-//                entity.model!.mesh.
-//                ReplateCameraView.spheresModels = Array(entity.model!.mesh.contents.models)
-//            }
-//            entity.scale *= 4.5
-//            entity.position = SIMD3(anchorTransform.columns.3.x, anchorTransform.columns.3.y, anchorTransform.columns.3.z)
+            //            if #available(iOS 15.0, *) {
+            //                entity.model!.mesh.
+            //                ReplateCameraView.spheresModels = Array(entity.model!.mesh.contents.models)
+            //            }
+            //            entity.scale *= 4.5
+            //            entity.position = SIMD3(anchorTransform.columns.3.x, anchorTransform.columns.3.y, anchorTransform.columns.3.z)
             
             func createSphere(position: SIMD3<Float>) -> ModelEntity {
                 let sphereMesh = MeshResource.generateSphere(radius: 0.0025)
@@ -163,21 +153,53 @@ class ReplateCameraView : UIView, ARSessionDelegate {
                     ReplateCameraView.anchorEntity.addChild(sphereEntity)
                 }
             }
-             
-            ReplateCameraView.anchorEntity = AnchorEntity()
+            
             createSpheres(y: 0.0)
             createSpheres(y: 0.3)
             ReplateCameraView.arView.scene.anchors.append(ReplateCameraView.anchorEntity)
         }
     }
 
-//    @objc func setCameraRect(_ node: NSNumber, rect: NSDictionary) {
-//        let x = rect["x"] as? CGFloat ?? 0
-//        let y = rect["y"] as? CGFloat ?? 0
-//        let width = rect["width"] as? CGFloat ?? 0
-//        let height = rect["height"] as? CGFloat ?? 0
-////        arView.(CGRect(x: x, y: y, width: width, height: height))
-//    }
+    func setupAR() {
+        print("Setup AR")
+        let width = self.frame.width
+        let height = self.frame.height
+        ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
+        ReplateCameraView.arView.backgroundColor = hexStringToUIColor(hexColor: "#32a852")
+        addSubview(ReplateCameraView.arView)
+        ReplateCameraView.arView.session.delegate = self
+        let configuration = ARWorldTrackingConfiguration()
+//        guard let obj = ARReferenceObject.referenceObjects(inGroupNamed: "AR Resource Group",
+//                                                           bundle: nil)
+//        else { fatalError("See no reference object") }
+//        print(obj)
+        configuration.planeDetection = ARWorldTrackingConfiguration.PlaneDetection.horizontal
+//        ReplateCameraView.arView.debugOptions = [
+//            .showAnchorOrigins,
+//            .showAnchorGeometry
+//        ]
+        if #available(iOS 16.0, *) {
+            print("recommendedVideoFormatForHighResolutionFrameCapturing")
+            configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.recommendedVideoFormatFor4KResolution ?? ARWorldTrackingConfiguration.supportedVideoFormats[0]
+        } else {
+            print("Alternative high resolution method")
+            let maxResolutionFormat = ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
+                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
+                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
+                return resolution1 < resolution2
+            })!
+            configuration.videoFormat = maxResolutionFormat
+        }
+//        configuration.detectionObjects = obj
+        ReplateCameraView.arView.session.run(configuration)
+        
+        ReplateCameraView.arView.addCoaching()
+    }
+
+    func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
+        
+    }
+
 
     @objc var color: String = "" {
         didSet {
@@ -220,11 +242,17 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         ReplateCameraView.arView.session.run(ARWorldTrackingConfiguration())
     }
 
-
 }
 
 @objc(ReplateCameraController)
-class ReplateCameraController: NSObject {
+class ReplateCameraController: RCTEventEmitter {
+    
+    static var INSTANCE: ReplateCameraController!
+    
+    override init() {
+        super.init()
+        ReplateCameraController.INSTANCE = self
+    }
 
     @objc(getPhotosCount:rejecter:)
     func getPhotosCount(_ resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void{
@@ -330,7 +358,6 @@ class ReplateCameraController: NSObject {
     }
     
     
-    
     static func saveImageAsJPEG(_ image: UIImage) -> URL? {
         // Convert UIImage to Data with JPEG representation
         guard let imageData = image.jpegData(compressionQuality: 1.0) else {
@@ -363,12 +390,12 @@ class ReplateCameraController: NSObject {
             return nil
         }
     }
-
-
-   @objc
-   func constantsToExport() -> [String: Any]! {
-     return ["someKey": "someValue"]
-   }
+    
+    @objc
+    func sendTutorialEndedEvent(){
+        self.sendEvent(withName: "arTutorialCompleted", body: true)
+    }
+    
     
     func updateSpheres(deviceTargetInFocus: Int) {
         guard let anchorNode = ReplateCameraView.anchorEntity else { return }
@@ -434,5 +461,33 @@ extension SCNVector3 {
     
     static func Dot(_ a: SCNVector3, _ b: SCNVector3) -> Float {
         return a.x*b.x + a.y*b.y + a.z*b.z
+    }
+}
+
+extension ARView: ARCoachingOverlayViewDelegate {
+    func addCoaching() {
+        print("ADD COACHING")
+        // Create a ARCoachingOverlayView object
+        let coachingOverlay = ARCoachingOverlayView()
+        // Make sure it rescales if the device orientation changes
+        coachingOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        self.addSubview(coachingOverlay)
+        coachingOverlay.center = self.convert(self.center, from:self.superview)
+        // Set the Augmented Reality goal
+        coachingOverlay.goal = .horizontalPlane
+        // Set the ARSession
+        coachingOverlay.session = self.session
+        // Set the delegate for any callbacks
+        coachingOverlay.delegate = self
+        coachingOverlay.setActive(true, animated: true)
+    }
+    // Example callback for the delegate object
+    public func coachingOverlayViewDidDeactivate(
+        _ coachingOverlayView: ARCoachingOverlayView
+    ) {
+        print("DEACTIVATED")
+        ReplateCameraController.INSTANCE.sendTutorialEndedEvent()
+        ReplateCameraView.addRecognizer()
+        print("CRASHED")
     }
 }
