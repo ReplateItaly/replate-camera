@@ -110,6 +110,7 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         let callback = ReplateCameraController.anchorSetCallback
         if (callback != nil){
             callback!([])
+            ReplateCameraController.anchorSetCallback = nil
         }
         let tapLocation: CGPoint = recognizer.location(in: ReplateCameraView.arView)
         let estimatedPlane: ARRaycastQuery.Target = .estimatedPlane
@@ -523,6 +524,7 @@ extension ARView: ARCoachingOverlayViewDelegate {
         let callback = ReplateCameraController.completedTutorialCallback
         if (callback != nil){
             callback!([])
+            ReplateCameraController.completedTutorialCallback = nil
         }
         ReplateCameraView.addRecognizer()
         print("CRASHED")
