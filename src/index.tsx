@@ -49,3 +49,11 @@ export function getPhotosCount(): Promise<number> {
 export function isScanComplete(): Promise<boolean> {
   return ReplateCameraModule.isScanComplete();
 }
+
+export function registerCompletedTutorialCallback(callback: () => void) {
+  ReplateCameraModule.registerCompletedTutorialCallback(callback);
+}
+
+export function registerAnchorSetCallback(callback: () => void) {
+  ReplateCameraModule.registerAnchorSetCallback(callback);
+}

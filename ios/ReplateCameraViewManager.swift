@@ -5,17 +5,17 @@ import AVFoundation
 
 @objc(ReplateCameraViewManager)
 class ReplateCameraViewManager: RCTViewManager {
-
+    
     override func view() -> (ReplateCameraView) {
         let replCameraView = ReplateCameraView()
         return replCameraView
     }
-
+    
     @objc override static func requiresMainQueueSetup() -> Bool {
         return false
     }
-
-
+    
+    
 }
 
 extension UIImage {
@@ -43,7 +43,7 @@ extension UIImage {
 }
 
 class ReplateCameraView : UIView, ARSessionDelegate {
-
+    
     static var arView: ARView!
     static var anchorEntity: AnchorEntity!
     static var model: Entity!
@@ -53,21 +53,21 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     static var totalPhotosTaken: Int = 0
     static var photosFromDifferentAnglesTaken = 0
     static var INSTANCE: ReplateCameraView!
-
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
         requestCameraPermissions()
-//        setupAR()
+        //        setupAR()
         ReplateCameraView.INSTANCE = self
     }
-
+    
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         requestCameraPermissions()
         ReplateCameraView.INSTANCE = self
-//        setupAR()
+        //        setupAR()
     }
-
+    
     static func addRecognizer(){
         let recognizer = UITapGestureRecognizer(target: ReplateCameraView.INSTANCE,
                                                 action: #selector(ReplateCameraView.INSTANCE.viewTapped(_:)))
@@ -75,7 +75,7 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     }
     
     func requestCameraPermissions(){
-
+        
         if AVCaptureDevice.authorizationStatus(for: .video) ==  .authorized {
             print("Camera permissions already granted")
         } else {
@@ -104,17 +104,20 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     
     @objc private func viewTapped(_ recognizer: UITapGestureRecognizer) {
         print("VIEW TAPPED")
-//        guard !ReplateCameraView.arView.canBecomeFocused else {
-//            return
-//        }
-        
+        //        guard !ReplateCameraView.arView.canBecomeFocused else {
+        //            return
+        //        }
+        let callback = ReplateCameraController.anchorSetCallback
+        if (callback != nil){
+            callback!([])
+        }
         let tapLocation: CGPoint = recognizer.location(in: ReplateCameraView.arView)
         let estimatedPlane: ARRaycastQuery.Target = .estimatedPlane
         let alignment: ARRaycastQuery.TargetAlignment = .horizontal
         
         let result: [ARRaycastResult] = ReplateCameraView.arView.raycast(from: tapLocation,
-                                                       allowing: estimatedPlane,
-                                                       alignment: alignment)
+                                                                         allowing: estimatedPlane,
+                                                                         alignment: alignment)
         
         guard let rayCast: ARRaycastResult = result.first
         else { return }
@@ -159,7 +162,7 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             ReplateCameraView.arView.scene.anchors.append(ReplateCameraView.anchorEntity)
         }
     }
-
+    
     func setupAR() {
         print("Setup AR")
         let width = self.frame.width
@@ -169,15 +172,15 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         addSubview(ReplateCameraView.arView)
         ReplateCameraView.arView.session.delegate = self
         let configuration = ARWorldTrackingConfiguration()
-//        guard let obj = ARReferenceObject.referenceObjects(inGroupNamed: "AR Resource Group",
-//                                                           bundle: nil)
-//        else { fatalError("See no reference object") }
-//        print(obj)
+        //        guard let obj = ARReferenceObject.referenceObjects(inGroupNamed: "AR Resource Group",
+        //                                                           bundle: nil)
+        //        else { fatalError("See no reference object") }
+        //        print(obj)
         configuration.planeDetection = ARWorldTrackingConfiguration.PlaneDetection.horizontal
-//        ReplateCameraView.arView.debugOptions = [
-//            .showAnchorOrigins,
-//            .showAnchorGeometry
-//        ]
+        //        ReplateCameraView.arView.debugOptions = [
+        //            .showAnchorOrigins,
+        //            .showAnchorGeometry
+        //        ]
         if #available(iOS 16.0, *) {
             print("recommendedVideoFormatForHighResolutionFrameCapturing")
             configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.recommendedVideoFormatFor4KResolution ?? ARWorldTrackingConfiguration.supportedVideoFormats[0]
@@ -190,70 +193,76 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             })!
             configuration.videoFormat = maxResolutionFormat
         }
-//        configuration.detectionObjects = obj
+        //        configuration.detectionObjects = obj
         ReplateCameraView.arView.session.run(configuration)
         
         ReplateCameraView.arView.addCoaching()
     }
-
+    
     func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
         
     }
-
-
+    
+    
     @objc var color: String = "" {
         didSet {
             self.backgroundColor = hexStringToUIColor(hexColor: color)
         }
     }
-
+    
     func hexStringToUIColor(hexColor: String) -> UIColor {
         let stringScanner = Scanner(string: hexColor)
-
+        
         if(hexColor.hasPrefix("#")) {
             stringScanner.scanLocation = 1
         }
         var color: UInt32 = 0
         stringScanner.scanHexInt32(&color)
-
+        
         let r = CGFloat(Int(color >> 16) & 0x000000FF)
         let g = CGFloat(Int(color >> 8) & 0x000000FF)
         let b = CGFloat(Int(color) & 0x000000FF)
-
+        
         return UIColor(red: r / 255.0, green: g / 255.0, blue: b / 255.0, alpha: 1)
     }
-
+    
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         // Handle AR frame updates
         // You can perform actions here, such as updating the AR content based on the camera frame
     }
-
+    
     func sessionWasInterrupted(_ session: ARSession) {
         // Handle session interruption (e.g., app goes to the background)
-
+        
         // Pause the AR session to save resources
         ReplateCameraView.arView.session.pause()
     }
-
+    
     func sessionInterruptionEnded(_ session: ARSession) {
         // Handle resuming session after interruption
-
+        
         // Resume the AR session
         ReplateCameraView.arView.session.run(ARWorldTrackingConfiguration())
     }
-
+    
 }
 
 @objc(ReplateCameraController)
-class ReplateCameraController: RCTEventEmitter {
+class ReplateCameraController: NSObject {
     
-    static var INSTANCE: ReplateCameraController!
+    static var completedTutorialCallback: RCTResponseSenderBlock?
+    static var anchorSetCallback: RCTResponseSenderBlock?
     
-    override init() {
-        super.init()
-        ReplateCameraController.INSTANCE = self
+    @objc(registerCompletedTutorialCallback:)
+    func registerCompletedTutorialCallback(_ myCallback: @escaping RCTResponseSenderBlock){
+        ReplateCameraController.completedTutorialCallback = myCallback
     }
-
+    
+    @objc(registerAnchorSetCallback:)
+    func registerAnchorSetCallback(_ myCallback: @escaping RCTResponseSenderBlock){
+        ReplateCameraController.anchorSetCallback = myCallback
+    }
+    
     @objc(getPhotosCount:rejecter:)
     func getPhotosCount(_ resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void{
         resolver(ReplateCameraView.totalPhotosTaken)
@@ -270,108 +279,108 @@ class ReplateCameraController: RCTEventEmitter {
     }
     
     @objc(takePhoto:rejecter:)
-       func takePhoto(_ resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
-           
-           //DEVICE ORIENTATION
-           guard let anchorNode = ReplateCameraView.anchorEntity else {
-               rejecter("[ReplateCameraController]", "No anchor set yet", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil));
-               return
-           }
-           
-           // Assuming you have two points
-           let point1 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
-                                     anchorNode.position(relativeTo: nil).y,
-                                     anchorNode.position(relativeTo: nil).z)
-           let point2 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
-                                     anchorNode.position(relativeTo: nil).y + 0.3,
-                                     anchorNode.position(relativeTo: nil).z)
-           
-           // Function to calculate the angle between two vectors
-           func angleBetweenVectors(_ vector1: SIMD3<Float>, _ vector2: SIMD3<Float>) -> Float {
-               let dotProduct = dot(normalize(vector1), normalize(vector2))
-               return acos(dotProduct)
-           }
-           
-           // Threshold angle for considering if the device is pointing towards a point
-           var deviceTargetInFocus = -1
-           // Check if the device is pointing towards one of the two points
-           if let cameraTransform = ReplateCameraView.arView.session.currentFrame?.camera.transform {
-               let deviceDirection = SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z)
-               
-               let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
-               let directionToFirstPoint = normalize(point1 - cameraPosition)
-               let directionToSecondPoint = normalize(point2 - cameraPosition)
-               
-               let point1Distance = distance(point1, cameraPosition)
-               let point2Distance = distance(point2, cameraPosition)
-               let averageDistance = (point1Distance + point2Distance) / 2.0
-               
-               let baseThreshold: Float = 0.6  // adjust as needed
-               let distanceFactor: Float = 0.2  // adjust as needed
-               
-               let dynamicThreshold = baseThreshold + distanceFactor * sqrt(averageDistance)
-               
-               
-               let angleToFirstPoint = angleBetweenVectors(deviceDirection, directionToFirstPoint)
-               let angleToSecondPoint = angleBetweenVectors(deviceDirection, directionToSecondPoint)
-               print("Camera: \(cameraPosition)")
-               print("Point 1 position: \(point1) Point 2 position: \(point2)")
-               print("Angle to first: ", angleToFirstPoint, " Angle to second: ", angleToSecondPoint)
-               print("Threshold \(dynamicThreshold)")
-               let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraPosition.y < anchorNode.position.y + 0.20
-               let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraPosition.y >= anchorNode.position.y + 0.20
-               if (isPointingAtFirstPoint) {
-                   deviceTargetInFocus = 0
-               }else if(isPointingAtSecondPoint){
-                   deviceTargetInFocus = 1
-               }
-               // Now you can determine if the device is pointing towards one of the two points
-               print("Is pointing at first point: \(isPointingAtFirstPoint)")
-               print("Is pointing at second point: \(isPointingAtSecondPoint)")
-           } else {
-               print("Camera transform data not available")
-               rejecter("[ReplateCameraController]", "Camera transform data not available", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
-               return
-           }
-           
-          print("Take photo")
-           if(deviceTargetInFocus != -1){
-               if let image = ReplateCameraView.arView?.session.currentFrame?.capturedImage {
-                   let ciimg = CIImage(cvImageBuffer: image)
-                   let ciImage = ciimg
-                   let cgImage = ReplateCameraController.cgImage(from: ciImage)!
-                   let uiImage = UIImage(cgImage: cgImage)
-                   let finImage = uiImage.rotate(radians: .pi/2) // Adjust radians as needed
-
-                   guard let components = finImage.averageColor()?.getRGBComponents()
-                   else {
-                       rejecter("[ReplateCameraController]", "Cannot get color components", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
-                       return
-                   }
-                   let averagePixelColor = components.red + components.blue + components.green / 3
-                   print("Average pixel color: \(averagePixelColor)")
-                   if ((components.red + components.blue + components.green) / 3 < 0.15){
-                       rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
-                       return
-                   }
-                   
-                   print("Saving photo")
-                   if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
-                       resolver(url.absoluteString)
-                       print("Saved photo")
-                       updateSpheres(deviceTargetInFocus: deviceTargetInFocus)
-                       return
-                   }
-               }
-           }else{
-               rejecter("[ReplateCameraController]", "Object not in focus", NSError(domain: "ReplateCameraController", code: 002, userInfo: nil))
-               return
-           }
-           
-           print("Error saving photo")
-           rejecter("[ReplateCameraController]", "Error saving photo", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
-           
-   }
+    func takePhoto(_ resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
+        
+        //DEVICE ORIENTATION
+        guard let anchorNode = ReplateCameraView.anchorEntity else {
+            rejecter("[ReplateCameraController]", "No anchor set yet", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil));
+            return
+        }
+        
+        // Assuming you have two points
+        let point1 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
+                                  anchorNode.position(relativeTo: nil).y,
+                                  anchorNode.position(relativeTo: nil).z)
+        let point2 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
+                                  anchorNode.position(relativeTo: nil).y + 0.3,
+                                  anchorNode.position(relativeTo: nil).z)
+        
+        // Function to calculate the angle between two vectors
+        func angleBetweenVectors(_ vector1: SIMD3<Float>, _ vector2: SIMD3<Float>) -> Float {
+            let dotProduct = dot(normalize(vector1), normalize(vector2))
+            return acos(dotProduct)
+        }
+        
+        // Threshold angle for considering if the device is pointing towards a point
+        var deviceTargetInFocus = -1
+        // Check if the device is pointing towards one of the two points
+        if let cameraTransform = ReplateCameraView.arView.session.currentFrame?.camera.transform {
+            let deviceDirection = SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z)
+            
+            let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
+            let directionToFirstPoint = normalize(point1 - cameraPosition)
+            let directionToSecondPoint = normalize(point2 - cameraPosition)
+            
+            let point1Distance = distance(point1, cameraPosition)
+            let point2Distance = distance(point2, cameraPosition)
+            let averageDistance = (point1Distance + point2Distance) / 2.0
+            
+            let baseThreshold: Float = 0.6  // adjust as needed
+            let distanceFactor: Float = 0.2  // adjust as needed
+            
+            let dynamicThreshold = baseThreshold + distanceFactor * sqrt(averageDistance)
+            
+            
+            let angleToFirstPoint = angleBetweenVectors(deviceDirection, directionToFirstPoint)
+            let angleToSecondPoint = angleBetweenVectors(deviceDirection, directionToSecondPoint)
+            print("Camera: \(cameraPosition)")
+            print("Point 1 position: \(point1) Point 2 position: \(point2)")
+            print("Angle to first: ", angleToFirstPoint, " Angle to second: ", angleToSecondPoint)
+            print("Threshold \(dynamicThreshold)")
+            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraPosition.y < anchorNode.position.y + 0.20
+            let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraPosition.y >= anchorNode.position.y + 0.20
+            if (isPointingAtFirstPoint) {
+                deviceTargetInFocus = 0
+            }else if(isPointingAtSecondPoint){
+                deviceTargetInFocus = 1
+            }
+            // Now you can determine if the device is pointing towards one of the two points
+            print("Is pointing at first point: \(isPointingAtFirstPoint)")
+            print("Is pointing at second point: \(isPointingAtSecondPoint)")
+        } else {
+            print("Camera transform data not available")
+            rejecter("[ReplateCameraController]", "Camera transform data not available", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
+            return
+        }
+        
+        print("Take photo")
+        if(deviceTargetInFocus != -1){
+            if let image = ReplateCameraView.arView?.session.currentFrame?.capturedImage {
+                let ciimg = CIImage(cvImageBuffer: image)
+                let ciImage = ciimg
+                let cgImage = ReplateCameraController.cgImage(from: ciImage)!
+                let uiImage = UIImage(cgImage: cgImage)
+                let finImage = uiImage.rotate(radians: .pi/2) // Adjust radians as needed
+                
+                guard let components = finImage.averageColor()?.getRGBComponents()
+                else {
+                    rejecter("[ReplateCameraController]", "Cannot get color components", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
+                    return
+                }
+                let averagePixelColor = components.red + components.blue + components.green / 3
+                print("Average pixel color: \(averagePixelColor)")
+                if ((components.red + components.blue + components.green) / 3 < 0.15){
+                    rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
+                    return
+                }
+                
+                print("Saving photo")
+                if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
+                    resolver(url.absoluteString)
+                    print("Saved photo")
+                    updateSpheres(deviceTargetInFocus: deviceTargetInFocus)
+                    return
+                }
+            }
+        }else{
+            rejecter("[ReplateCameraController]", "Object not in focus", NSError(domain: "ReplateCameraController", code: 002, userInfo: nil))
+            return
+        }
+        
+        print("Error saving photo")
+        rejecter("[ReplateCameraController]", "Error saving photo", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
+        
+    }
     
     
     static func cgImage(from ciImage: CIImage) -> CGImage? {
@@ -389,7 +398,7 @@ class ReplateCameraController: RCTEventEmitter {
             return nil
         }
         
-//        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+        //        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
         
         // Get the temporary directory URL
         let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
@@ -413,17 +422,6 @@ class ReplateCameraController: RCTEventEmitter {
             return nil
         }
     }
-    
-    @objc
-    func sendTutorialEndedEvent(){
-        self.sendEvent(withName: "arTutorialCompleted", body: true)
-    }
-    
-    @objc
-    override func supportedEvents() -> [String]! {
-        return ["arTutorialCompleted"]
-    }
-    
     
     func updateSpheres(deviceTargetInFocus: Int) {
         guard let anchorNode = ReplateCameraView.anchorEntity else { return }
@@ -486,7 +484,7 @@ class ReplateCameraController: RCTEventEmitter {
         
         return angleInDegrees
     }
-
+    
 }
 
 extension SCNVector3 {
@@ -522,7 +520,10 @@ extension ARView: ARCoachingOverlayViewDelegate {
         _ coachingOverlayView: ARCoachingOverlayView
     ) {
         print("DEACTIVATED")
-        ReplateCameraController.INSTANCE.sendTutorialEndedEvent()
+        let callback = ReplateCameraController.completedTutorialCallback
+        if (callback != nil){
+            callback!([])
+        }
         ReplateCameraView.addRecognizer()
         print("CRASHED")
     }

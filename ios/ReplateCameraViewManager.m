@@ -25,6 +25,10 @@ RCT_EXTERN_METHOD(isScanComplete:(RCTPromiseResolveBlock*)resolve
 RCT_EXTERN_METHOD(getRemainingAnglesToScan:(RCTPromiseResolveBlock*)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(registerCompletedTutorialCallback:(RCTResponseSenderBlock)callback)
+
+RCT_EXTERN_METHOD(registerAnchorSetCallback:(RCTResponseSenderBlock)callback)
+
 + (BOOL)requiresMainQueueSetup
 {
     return NO;
