@@ -27,7 +27,7 @@ export const ReplateCameraView =
         throw new Error(LINKING_ERROR);
       };
 
-const ReplateCameraModule = NativeModules.ReplateCameraController
+export const ReplateCameraModule = NativeModules.ReplateCameraController
   ? NativeModules.ReplateCameraController
   : new Proxy(
       {},
