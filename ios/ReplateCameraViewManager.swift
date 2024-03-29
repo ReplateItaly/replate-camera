@@ -274,17 +274,17 @@ class ReplateCameraController: RCTEventEmitter {
            
            //DEVICE ORIENTATION
            guard let anchorNode = ReplateCameraView.anchorEntity else {
-               rejecter("[ReplateCameraController]", "Error saving photo", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil));
+               rejecter("[ReplateCameraController]", "No anchor set yet", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil));
                return
            }
            
            // Assuming you have two points
-           let point1 = SIMD3<Float>(anchorNode.position.x,
-                                     anchorNode.position.y,
-                                     anchorNode.position.z)
-           let point2 = SIMD3<Float>(anchorNode.position.x,
-                                     anchorNode.position.y + 0.3,
-                                     anchorNode.position.z)
+           let point1 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
+                                     anchorNode.position(relativeTo: nil).y,
+                                     anchorNode.position(relativeTo: nil).z)
+           let point2 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
+                                     anchorNode.position(relativeTo: nil).y + 0.3,
+                                     anchorNode.position(relativeTo: nil).z)
            
            // Function to calculate the angle between two vectors
            func angleBetweenVectors(_ vector1: SIMD3<Float>, _ vector2: SIMD3<Float>) -> Float {
@@ -293,22 +293,33 @@ class ReplateCameraController: RCTEventEmitter {
            }
            
            // Threshold angle for considering if the device is pointing towards a point
-           let thresholdAngle: Float = 0.3 // Adjust this threshold as needed
            var deviceTargetInFocus = -1
            // Check if the device is pointing towards one of the two points
            if let cameraTransform = ReplateCameraView.arView.session.currentFrame?.camera.transform {
                let deviceDirection = SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z)
                
                let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
-               
                let directionToFirstPoint = normalize(point1 - cameraPosition)
                let directionToSecondPoint = normalize(point2 - cameraPosition)
                
+               let point1Distance = distance(point1, cameraPosition)
+               let point2Distance = distance(point2, cameraPosition)
+               let averageDistance = (point1Distance + point2Distance) / 2.0
+               
+               let baseThreshold: Float = 0.6  // adjust as needed
+               let distanceFactor: Float = 0.2  // adjust as needed
+               
+               let dynamicThreshold = baseThreshold + distanceFactor * sqrt(averageDistance)
+               
+               
                let angleToFirstPoint = angleBetweenVectors(deviceDirection, directionToFirstPoint)
                let angleToSecondPoint = angleBetweenVectors(deviceDirection, directionToSecondPoint)
-               print("Camera Y: \(cameraPosition.y)")
-               let isPointingAtFirstPoint = angleToFirstPoint < thresholdAngle && cameraPosition.y < 0.25
-               let isPointingAtSecondPoint = angleToSecondPoint < thresholdAngle && cameraPosition.y >= 0.25
+               print("Camera: \(cameraPosition)")
+               print("Point 1 position: \(point1) Point 2 position: \(point2)")
+               print("Angle to first: ", angleToFirstPoint, " Angle to second: ", angleToSecondPoint)
+               print("Threshold \(dynamicThreshold)")
+               let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraPosition.y < anchorNode.position.y + 0.20
+               let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraPosition.y >= anchorNode.position.y + 0.20
                if (isPointingAtFirstPoint) {
                    deviceTargetInFocus = 0
                }else if(isPointingAtSecondPoint){
@@ -332,6 +343,18 @@ class ReplateCameraController: RCTEventEmitter {
                    let uiImage = UIImage(cgImage: cgImage)
                    let finImage = uiImage.rotate(radians: .pi/2) // Adjust radians as needed
 
+                   guard let components = finImage.averageColor()?.getRGBComponents()
+                   else {
+                       rejecter("[ReplateCameraController]", "Cannot get color components", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
+                       return
+                   }
+                   let averagePixelColor = components.red + components.blue + components.green / 3
+                   print("Average pixel color: \(averagePixelColor)")
+                   if ((components.red + components.blue + components.green) / 3 < 0.15){
+                       rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
+                       return
+                   }
+                   
                    print("Saving photo")
                    if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
                        resolver(url.absoluteString)
@@ -396,6 +419,11 @@ class ReplateCameraController: RCTEventEmitter {
         self.sendEvent(withName: "arTutorialCompleted", body: true)
     }
     
+    @objc
+    override func supportedEvents() -> [String]! {
+        return ["arTutorialCompleted"]
+    }
+    
     
     func updateSpheres(deviceTargetInFocus: Int) {
         guard let anchorNode = ReplateCameraView.anchorEntity else { return }
@@ -405,9 +433,9 @@ class ReplateCameraController: RCTEventEmitter {
             let cameraTransform = frame.camera.transform
             
             // Calculate the angle between the camera and the anchor
-            let anchorPosition = SCNVector3(anchorNode.position.x,
-                                            anchorNode.position.y,
-                                            anchorNode.position.z)
+            let anchorPosition = SCNVector3(anchorNode.position(relativeTo: nil).x,
+                                            anchorNode.position(relativeTo: nil).y,
+                                            anchorNode.position(relativeTo: nil).z)
             let cameraPosition = SCNVector3(cameraTransform.columns.3.x,
                                             cameraTransform.columns.3.y,
                                             cameraTransform.columns.3.z)
@@ -436,9 +464,9 @@ class ReplateCameraController: RCTEventEmitter {
         }
     }
     
-    func calculateAngle(_ vector1: SCNVector3, _ vector2: SCNVector3) -> Float {
+    func calculateAngle(_ camera: SCNVector3, _ anchor: SCNVector3) -> Float {
         // Calculate the angle in 2D plane (x-z plane) using atan2
-        let angle = atan2(vector1.z, vector1.x)
+        let angle = atan2(camera.z - anchor.z, camera.x - anchor.x)
         
         // Convert from radians to degrees
         var angleInDegrees = GLKMathRadiansToDegrees(Float(angle))
@@ -446,6 +474,14 @@ class ReplateCameraController: RCTEventEmitter {
         // Adjust the angle to be between 0 and 360 degrees
         if angleInDegrees < 0 {
             angleInDegrees += 360
+        }
+        
+        // Rotate by 2.5 degrees to consider sphere-center, not sphere-begin
+        angleInDegrees += 2.5
+        
+        // If rotating resulted in angle > 360 degrees, subtract 360
+        if angleInDegrees >= 360 {
+            angleInDegrees -= 360
         }
         
         return angleInDegrees
@@ -489,5 +525,68 @@ extension ARView: ARCoachingOverlayViewDelegate {
         ReplateCameraController.INSTANCE.sendTutorialEndedEvent()
         ReplateCameraView.addRecognizer()
         print("CRASHED")
+    }
+}
+
+extension UIImage {
+    func averageColor() -> UIColor? {
+        // Convert UIImage to CGImage
+        guard let cgImage = self.cgImage else { return nil }
+        
+        // Get width and height of the image
+        let width = cgImage.width
+        let height = cgImage.height
+        
+        // Create a data provider from CGImage
+        guard let dataProvider = cgImage.dataProvider else { return nil }
+        
+        // Access pixel data
+        guard let pixelData = dataProvider.data else { return nil }
+        
+        // Create a pointer to the pixel data
+        let data: UnsafePointer<UInt8> = CFDataGetBytePtr(pixelData)
+        
+        var totalRed: CGFloat = 0
+        var totalGreen: CGFloat = 0
+        var totalBlue: CGFloat = 0
+        
+        // Loop through each pixel and calculate sum of RGB values
+        for y in 0..<height {
+            for x in 0..<width {
+                let pixelInfo: Int = ((width * y) + x) * 4
+                let red = CGFloat(data[pixelInfo]) / 255.0
+                let green = CGFloat(data[pixelInfo + 1]) / 255.0
+                let blue = CGFloat(data[pixelInfo + 2]) / 255.0
+                
+                totalRed += red
+                totalGreen += green
+                totalBlue += blue
+            }
+        }
+        
+        // Calculate average RGB values
+        let count = CGFloat(width * height)
+        let averageRed = totalRed / count
+        let averageGreen = totalGreen / count
+        let averageBlue = totalBlue / count
+        
+        // Create and return average color
+        return UIColor(red: averageRed, green: averageGreen, blue: averageBlue, alpha: 1.0)
+    }
+}
+
+extension UIColor {
+    func getRGBComponents() -> (red: CGFloat, green: CGFloat, blue: CGFloat)? {
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        
+        // Check if the color can be converted to RGB
+        guard self.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+            return nil
+        }
+        
+        return (red, green, blue)
     }
 }
