@@ -53,6 +53,9 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     static var totalPhotosTaken: Int = 0
     static var photosFromDifferentAnglesTaken = 0
     static var INSTANCE: ReplateCameraView!
+    static var sphereRadius = Float(0.0025 * 2)
+    static var spheresRadius = Float(0.15)
+    static var sphereAngle = Float(5)
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -72,6 +75,8 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         let recognizer = UITapGestureRecognizer(target: ReplateCameraView.INSTANCE,
                                                 action: #selector(ReplateCameraView.INSTANCE.viewTapped(_:)))
         ReplateCameraView.arView.addGestureRecognizer(recognizer)
+        let panGestureRecognizer = UIPanGestureRecognizer(target: ReplateCameraView.INSTANCE, action: #selector(ReplateCameraView.INSTANCE.handlePan(_:)))
+        ReplateCameraView.arView.addGestureRecognizer(panGestureRecognizer)
     }
     
     func requestCameraPermissions(){
@@ -101,6 +106,22 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         self.setupAR()
     }
     
+    @objc private func handlePan(_ gestureRecognizer : UIPanGestureRecognizer) {
+        print("handle pan")
+        guard let sceneView = gestureRecognizer.view as? ARView else {
+            return
+        }
+        print("passed guard")
+        if gestureRecognizer.state == .changed {
+            print("triggered")
+            let translation = gestureRecognizer.translation(in: sceneView)
+            print(translation)
+            let initialPosition = ReplateCameraView.anchorEntity.position
+            ReplateCameraView.anchorEntity.position = initialPosition + SIMD3(Float(translation.x / 5000), 0, Float(translation.y / 5000))
+
+//            gestureRecognizer.setTranslation(.zero, in: sceneView)
+        }
+    }
     
     @objc private func viewTapped(_ recognizer: UITapGestureRecognizer) {
         print("VIEW TAPPED")
@@ -122,7 +143,7 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         
         guard let rayCast: ARRaycastResult = result.first
         else { return }
-        let anchor = AnchorEntity(raycastResult: rayCast)
+        let anchor = AnchorEntity(world: rayCast.worldTransform)
         print("ANCHOR FOUND\n", anchor.transform)
         if (ReplateCameraView.model == nil && ReplateCameraView.anchorEntity == nil){
             ReplateCameraView.anchorEntity = anchor
@@ -139,14 +160,14 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             //            entity.position = SIMD3(anchorTransform.columns.3.x, anchorTransform.columns.3.y, anchorTransform.columns.3.z)
             
             func createSphere(position: SIMD3<Float>) -> ModelEntity {
-                let sphereMesh = MeshResource.generateSphere(radius: 0.0025)
+                let sphereMesh = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius)
                 let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.7), isMetallic: false)])
                 sphereEntity.position = position
                 return sphereEntity
             }
             
             func createSpheres(y: Float){
-                let radius = Float(0.1)
+                let radius = ReplateCameraView.spheresRadius
                 for i in 0..<72 {
                     let angle = Float(i) * (Float.pi / 180) * 5 // 10 degrees in radians
                     let x = radius * cos(angle)
@@ -158,8 +179,8 @@ class ReplateCameraView : UIView, ARSessionDelegate {
                 }
             }
             
-            createSpheres(y: 0.0)
-            createSpheres(y: 0.3)
+            createSpheres(y: 0.005)
+            createSpheres(y: 0.305)
             ReplateCameraView.arView.scene.anchors.append(ReplateCameraView.anchorEntity)
         }
     }
