@@ -57,3 +57,11 @@ export function registerCompletedTutorialCallback(callback: () => void) {
 export function registerAnchorSetCallback(callback: () => void) {
   ReplateCameraModule.registerAnchorSetCallback(callback);
 }
+
+export function registerCompletedUpperSpheresCallback(callback: () => void) {
+  ReplateCameraModule.registerAnchorSetCallback(callback);
+}
+
+export function registerCompletedLowerSpheresCallback(callback: () => void) {
+  ReplateCameraModule.registerAnchorSetCallback(callback);
+}

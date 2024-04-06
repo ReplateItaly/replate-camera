@@ -309,7 +309,6 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     func sessionInterruptionEnded(_ session: ARSession) {
         // Handle resuming session after interruption
         if(session.identifier == ReplateCameraView.sessionId){
-            ReplateCameraView.arView.session.identifier
             ReplateCameraView.isPaused = false
             setupAR()
         }
@@ -331,6 +330,12 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         ReplateCameraView.arView = nil
     }
     
+    static func generateImpactFeedback(strength: UIImpactFeedbackGenerator.FeedbackStyle) {
+        let impactFeedbackGenerator = UIImpactFeedbackGenerator(style: strength)
+        impactFeedbackGenerator.prepare()
+        impactFeedbackGenerator.impactOccurred()
+    }
+    
 }
 
 @objc(ReplateCameraController)
@@ -338,6 +343,8 @@ class ReplateCameraController: NSObject {
     
     static var completedTutorialCallback: RCTResponseSenderBlock?
     static var anchorSetCallback: RCTResponseSenderBlock?
+    static var completedUpperSpheresCallback: RCTResponseSenderBlock?
+    static var completedLowerSpheresCallback: RCTResponseSenderBlock?
     
     @objc(registerCompletedTutorialCallback:)
     func registerCompletedTutorialCallback(_ myCallback: @escaping RCTResponseSenderBlock){
@@ -347,6 +354,16 @@ class ReplateCameraController: NSObject {
     @objc(registerAnchorSetCallback:)
     func registerAnchorSetCallback(_ myCallback: @escaping RCTResponseSenderBlock){
         ReplateCameraController.anchorSetCallback = myCallback
+    }
+    
+    @objc(registerCompletedUpperSpheresCallback:)
+    func registerCompletedUpperSpheresCallback(_ myCallback: @escaping RCTResponseSenderBlock){
+        ReplateCameraController.completedUpperSpheresCallback = myCallback
+    }
+    
+    @objc(registerCompletedLowerSpheresCallback:)
+    func registerCompletedLowerSpheresCallback(_ myCallback: @escaping RCTResponseSenderBlock){
+        ReplateCameraController.completedLowerSpheresCallback = myCallback
     }
     
     @objc(getPhotosCount:rejecter:)
@@ -532,11 +549,25 @@ class ReplateCameraController: NSObject {
                 if(!ReplateCameraView.upperSpheresSet[sphereIndex]){
                     ReplateCameraView.upperSpheresSet[sphereIndex] = true
                     ReplateCameraView.photosFromDifferentAnglesTaken += 1
+                    if(ReplateCameraView.upperSpheresSet.allSatisfy({$0 == true})){
+                        let callback = ReplateCameraController.completedUpperSpheresCallback
+                        if (callback != nil){
+                            callback!([])
+                            ReplateCameraController.completedUpperSpheresCallback = nil
+                        }
+                    }
                 }
                 mesh = ReplateCameraView.spheresModels[72+sphereIndex]
             }else if(deviceTargetInFocus == 0 && !ReplateCameraView.lowerSpheresSet[sphereIndex]){
                 if(!ReplateCameraView.lowerSpheresSet[sphereIndex]){
                     ReplateCameraView.lowerSpheresSet[sphereIndex] = true
+                    if(ReplateCameraView.lowerSpheresSet.allSatisfy({$0 == true})){
+                        let callback = ReplateCameraController.completedLowerSpheresCallback
+                        if (callback != nil){
+                            callback!([])
+                            ReplateCameraController.completedLowerSpheresCallback = nil
+                        }
+                    }
                     ReplateCameraView.photosFromDifferentAnglesTaken += 1
                 }
                 mesh = ReplateCameraView.spheresModels[sphereIndex]
@@ -544,6 +575,7 @@ class ReplateCameraController: NSObject {
             if (mesh != nil){
                 let material = SimpleMaterial(color: .green, isMetallic: false)
                 mesh?.model?.materials[0] = material
+                ReplateCameraView.generateImpactFeedback(strength: .medium)
             }
         }
     }
@@ -600,6 +632,7 @@ extension ARView: ARCoachingOverlayViewDelegate {
         // Set the delegate for any callbacks
         coachingOverlay.delegate = self
         coachingOverlay.setActive(true, animated: true)
+        ReplateCameraView.generateImpactFeedback(strength: .light)
     }
     // Example callback for the delegate object
     public func coachingOverlayViewDidDeactivate(
@@ -609,8 +642,9 @@ extension ARView: ARCoachingOverlayViewDelegate {
         let callback = ReplateCameraController.completedTutorialCallback
         if (callback != nil){
             callback!([])
-            ReplateCameraController.completedTutorialCallback = nil
+//            ReplateCameraController.completedTutorialCallback = nil
         }
+        ReplateCameraView.generateImpactFeedback(strength: .heavy)
         ReplateCameraView.addRecognizer()
         print("CRASHED")
     }
