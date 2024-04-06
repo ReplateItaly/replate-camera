@@ -56,6 +56,8 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     static var sphereRadius = Float(0.0025 * 2)
     static var spheresRadius = Float(0.15)
     static var sphereAngle = Float(5)
+    static var spheresHeight = Float(0.01)
+    static var dragSpeed = CGFloat(7000)
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -77,6 +79,8 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         ReplateCameraView.arView.addGestureRecognizer(recognizer)
         let panGestureRecognizer = UIPanGestureRecognizer(target: ReplateCameraView.INSTANCE, action: #selector(ReplateCameraView.INSTANCE.handlePan(_:)))
         ReplateCameraView.arView.addGestureRecognizer(panGestureRecognizer)
+        let pinchGestureRecognizer = UIPinchGestureRecognizer(target: ReplateCameraView.INSTANCE, action: #selector(ReplateCameraView.INSTANCE.handlePinch(_:)))
+        ReplateCameraView.arView.addGestureRecognizer(pinchGestureRecognizer)
     }
     
     func requestCameraPermissions(){
@@ -117,9 +121,50 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             let translation = gestureRecognizer.translation(in: sceneView)
             print(translation)
             let initialPosition = ReplateCameraView.anchorEntity.position
-            ReplateCameraView.anchorEntity.position = initialPosition + SIMD3(Float(translation.x / 5000), 0, Float(translation.y / 5000))
+            ReplateCameraView.anchorEntity.position = initialPosition + SIMD3(Float(translation.x / ReplateCameraView.dragSpeed), 0, Float(translation.y / ReplateCameraView.dragSpeed))
 
-//            gestureRecognizer.setTranslation(.zero, in: sceneView)
+            gestureRecognizer.setTranslation(.zero, in: sceneView)
+        }
+    }
+    
+    @objc func handlePinch(_ gestureRecognizer: UIPinchGestureRecognizer) {
+        guard let sceneView = gestureRecognizer.view as? ARView else {
+            return
+        }
+        
+        switch gestureRecognizer.state {
+        case .changed:
+            // Calculate the scale based on the gesture recognizer's scale
+            let scale = Float(gestureRecognizer.scale)
+            
+            // Apply the scale to the anchor entity's transform
+            let transform = ReplateCameraView.anchorEntity.transform
+            
+            ReplateCameraView.spheresModels.forEach { entity in
+                ReplateCameraView.anchorEntity.removeChild(entity)
+            }
+            ReplateCameraView.spheresModels = []
+            ReplateCameraView.sphereRadius *= scale
+            ReplateCameraView.spheresRadius *= scale
+            ReplateCameraView.sphereAngle *= scale
+            createSpheres(y: 0 + ReplateCameraView.spheresHeight)
+            createSpheres(y: 0.3 + ReplateCameraView.spheresHeight)
+            for i in 0...71 {
+                let material = SimpleMaterial(color: .green, isMetallic: false)
+                if (ReplateCameraView.upperSpheresSet[i]){
+                    let entity = ReplateCameraView.spheresModels[72+i]
+                    entity.model?.materials[0] = material
+                }
+                if(ReplateCameraView.lowerSpheresSet[i]){
+                    let entity = ReplateCameraView.spheresModels[i]
+                    entity.model?.materials[0] = material
+                }
+                
+            }
+            // Reset the gesture recognizer's scale to 1 to avoid cumulative scaling
+            gestureRecognizer.scale = 1.0
+        default:
+            break
         }
     }
     
@@ -147,7 +192,6 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         print("ANCHOR FOUND\n", anchor.transform)
         if (ReplateCameraView.model == nil && ReplateCameraView.anchorEntity == nil){
             ReplateCameraView.anchorEntity = anchor
-            let anchorTransform = anchor.transform
             //            let path = Bundle.main.path(forResource: "anchor", ofType: "usdz")!
             //            let url = URL(fileURLWithPath: path)
             //            let entity: ModelEntity = try! ModelEntity.loadModel(contentsOf: url)
@@ -159,29 +203,29 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             //            entity.scale *= 4.5
             //            entity.position = SIMD3(anchorTransform.columns.3.x, anchorTransform.columns.3.y, anchorTransform.columns.3.z)
             
-            func createSphere(position: SIMD3<Float>) -> ModelEntity {
-                let sphereMesh = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius)
-                let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.7), isMetallic: false)])
-                sphereEntity.position = position
-                return sphereEntity
-            }
-            
-            func createSpheres(y: Float){
-                let radius = ReplateCameraView.spheresRadius
-                for i in 0..<72 {
-                    let angle = Float(i) * (Float.pi / 180) * 5 // 10 degrees in radians
-                    let x = radius * cos(angle)
-                    let z = radius * sin(angle)
-                    let spherePosition = SIMD3<Float>(x, y, z)
-                    let sphereEntity = createSphere(position: spherePosition)
-                    ReplateCameraView.spheresModels.append(sphereEntity)
-                    ReplateCameraView.anchorEntity.addChild(sphereEntity)
-                }
-            }
-            
-            createSpheres(y: 0.005)
-            createSpheres(y: 0.305)
+            createSpheres(y: 0 + ReplateCameraView.spheresHeight)
+            createSpheres(y: 0.3 + ReplateCameraView.spheresHeight)
             ReplateCameraView.arView.scene.anchors.append(ReplateCameraView.anchorEntity)
+        }
+    }
+    
+    func createSphere(position: SIMD3<Float>) -> ModelEntity {
+        let sphereMesh = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius)
+        let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.7), isMetallic: false)])
+        sphereEntity.position = position
+        return sphereEntity
+    }
+    
+    func createSpheres(y: Float){
+        let radius = ReplateCameraView.spheresRadius
+        for i in 0..<72 {
+            let angle = Float(i) * (Float.pi / 180) * 5 // 10 degrees in radians
+            let x = radius * cos(angle)
+            let z = radius * sin(angle)
+            let spherePosition = SIMD3<Float>(x, y, z)
+            let sphereEntity = createSphere(position: spherePosition)
+            ReplateCameraView.spheresModels.append(sphereEntity)
+            ReplateCameraView.anchorEntity.addChild(sphereEntity)
         }
     }
     
@@ -311,10 +355,10 @@ class ReplateCameraController: NSObject {
         
         // Assuming you have two points
         let point1 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
-                                  anchorNode.position(relativeTo: nil).y,
+                                  anchorNode.position(relativeTo: nil).y + ReplateCameraView.spheresHeight,
                                   anchorNode.position(relativeTo: nil).z)
         let point2 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
-                                  anchorNode.position(relativeTo: nil).y + 0.3,
+                                  anchorNode.position(relativeTo: nil).y + 0.3 + ReplateCameraView.spheresHeight,
                                   anchorNode.position(relativeTo: nil).z)
         
         // Function to calculate the angle between two vectors
@@ -349,8 +393,8 @@ class ReplateCameraController: NSObject {
             print("Point 1 position: \(point1) Point 2 position: \(point2)")
             print("Angle to first: ", angleToFirstPoint, " Angle to second: ", angleToSecondPoint)
             print("Threshold \(dynamicThreshold)")
-            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraPosition.y < anchorNode.position.y + 0.20
-            let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraPosition.y >= anchorNode.position.y + 0.20
+            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraPosition.y < anchorNode.position.y + 0.20 + ReplateCameraView.spheresHeight
+            let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraPosition.y >= anchorNode.position.y + 0.20 + ReplateCameraView.spheresHeight
             if (isPointingAtFirstPoint) {
                 deviceTargetInFocus = 0
             }else if(isPointingAtSecondPoint){
