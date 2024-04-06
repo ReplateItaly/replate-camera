@@ -56,7 +56,7 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     static var sphereRadius = Float(0.0025 * 2)
     static var spheresRadius = Float(0.15)
     static var sphereAngle = Float(5)
-    static var spheresHeight = Float(0.01)
+    static var spheresHeight = Float(0.02)
     static var dragSpeed = CGFloat(7000)
     static var isPaused = false
     static var sessionId: UUID!
@@ -430,8 +430,8 @@ class ReplateCameraController: NSObject {
             print("Point 1 position: \(point1) Point 2 position: \(point2)")
             print("Angle to first: ", angleToFirstPoint, " Angle to second: ", angleToSecondPoint)
             print("Threshold \(dynamicThreshold)")
-            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraPosition.y < anchorNode.position.y + 0.20 + ReplateCameraView.spheresHeight
-            let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraPosition.y >= anchorNode.position.y + 0.20 + ReplateCameraView.spheresHeight
+            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraPosition.y < anchorNode.position.y + ReplateCameraView.spheresHeight
+            let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraPosition.y >= anchorNode.position.y + ReplateCameraView.spheresHeight
             if (isPointingAtFirstPoint) {
                 deviceTargetInFocus = 0
             }else if(isPointingAtSecondPoint){
