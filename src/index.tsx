@@ -59,9 +59,9 @@ export function registerAnchorSetCallback(callback: () => void) {
 }
 
 export function registerCompletedUpperSpheresCallback(callback: () => void) {
-  ReplateCameraModule.registerAnchorSetCallback(callback);
+  ReplateCameraModule.registerCompletedUpperSpheresCallback(callback);
 }
 
 export function registerCompletedLowerSpheresCallback(callback: () => void) {
-  ReplateCameraModule.registerAnchorSetCallback(callback);
+  ReplateCameraModule.registerCompletedLowerSpheresCallback(callback);
 }
