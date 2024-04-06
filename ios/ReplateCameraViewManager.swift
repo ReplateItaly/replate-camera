@@ -58,6 +58,8 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     static var sphereAngle = Float(5)
     static var spheresHeight = Float(0.01)
     static var dragSpeed = CGFloat(7000)
+    static var isPaused = false
+    static var sessionId: UUID!
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -231,6 +233,7 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     
     func setupAR() {
         print("Setup AR")
+        reset()
         let width = self.frame.width
         let height = self.frame.height
         ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
@@ -263,12 +266,8 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         ReplateCameraView.arView.session.run(configuration)
         
         ReplateCameraView.arView.addCoaching()
+        ReplateCameraView.sessionId = ReplateCameraView.arView.session.identifier
     }
-    
-    func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
-        
-    }
-    
     
     @objc var color: String = "" {
         didSet {
@@ -301,14 +300,35 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         // Handle session interruption (e.g., app goes to the background)
         
         // Pause the AR session to save resources
-        ReplateCameraView.arView.session.pause()
+        if(session.identifier == ReplateCameraView.sessionId){
+            ReplateCameraView.arView.session.pause()
+            ReplateCameraView.isPaused = true
+        }
     }
     
     func sessionInterruptionEnded(_ session: ARSession) {
         // Handle resuming session after interruption
-        
-        // Resume the AR session
-        ReplateCameraView.arView.session.run(ARWorldTrackingConfiguration())
+        if(session.identifier == ReplateCameraView.sessionId){
+            ReplateCameraView.arView.session.identifier
+            ReplateCameraView.isPaused = false
+            setupAR()
+        }
+    }
+    
+    func reset(){
+        ReplateCameraView.anchorEntity = nil
+        ReplateCameraView.model = nil
+        ReplateCameraView.spheresModels = []
+        ReplateCameraView.upperSpheresSet = [Bool](repeating: false, count: 72)
+        ReplateCameraView.lowerSpheresSet = [Bool](repeating: false, count: 72)
+        ReplateCameraView.totalPhotosTaken = 0
+        ReplateCameraView.photosFromDifferentAnglesTaken = 0
+        ReplateCameraView.sphereRadius = Float(0.0025 * 2)
+        ReplateCameraView.spheresRadius = Float(0.15)
+        ReplateCameraView.sphereAngle = Float(5)
+        ReplateCameraView.spheresHeight = Float(0.01)
+        ReplateCameraView.dragSpeed = CGFloat(7000)
+        ReplateCameraView.arView = nil
     }
     
 }
