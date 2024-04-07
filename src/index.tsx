@@ -69,3 +69,7 @@ export function registerCompletedUpperSpheresCallback(callback: () => void) {
 export function registerCompletedLowerSpheresCallback(callback: () => void) {
   ReplateCameraModule.registerCompletedLowerSpheresCallback(callback);
 }
+
+export function registerOpenedTutorialCallback(callback: () => void) {
+  ReplateCameraModule.registerOpenedTutorialCallback(callback);
+}

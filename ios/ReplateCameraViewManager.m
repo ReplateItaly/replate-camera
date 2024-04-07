@@ -33,6 +33,8 @@ RCT_EXTERN_METHOD(registerCompletedUpperSpheresCallback:(RCTResponseSenderBlock)
 
 RCT_EXTERN_METHOD(registerCompletedLowerSpheresCallback:(RCTResponseSenderBlock)callback)
 
+RCT_EXTERN_METHOD(registerOpenedTutorialCallback:(RCTResponseSenderBlock)callback)
+
 + (BOOL)requiresMainQueueSetup
 {
     return NO;

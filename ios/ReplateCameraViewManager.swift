@@ -358,6 +358,12 @@ class ReplateCameraController: NSObject {
     static var anchorSetCallback: RCTResponseSenderBlock?
     static var completedUpperSpheresCallback: RCTResponseSenderBlock?
     static var completedLowerSpheresCallback: RCTResponseSenderBlock?
+    static var openedTutorialCallback: RCTResponseSenderBlock?
+    
+    @objc(registerOpenedTutorialCallback:)
+    func registerOpenedTutorialCallback(_ myCallback: @escaping RCTResponseSenderBlock){
+        ReplateCameraController.openedTutorialCallback = myCallback
+    }
     
     @objc(registerCompletedTutorialCallback:)
     func registerCompletedTutorialCallback(_ myCallback: @escaping RCTResponseSenderBlock){
@@ -646,6 +652,11 @@ extension ARView: ARCoachingOverlayViewDelegate {
         coachingOverlay.delegate = self
         coachingOverlay.setActive(true, animated: true)
         ReplateCameraView.generateImpactFeedback(strength: .light)
+        let callback = ReplateCameraController.openedTutorialCallback
+        if (callback != nil){
+            callback!([])
+            ReplateCameraController.openedTutorialCallback = nil
+        }
     }
     // Example callback for the delegate object
     public func coachingOverlayViewDidDeactivate(
