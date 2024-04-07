@@ -46,6 +46,10 @@ export function getPhotosCount(): Promise<number> {
   return ReplateCameraModule.getPhotosCount();
 }
 
+export function getRemainingAnglesToScan(): Promise<number> {
+  return ReplateCameraModule.getRemainingAnglesToScan();
+}
+
 export function isScanComplete(): Promise<boolean> {
   return ReplateCameraModule.isScanComplete();
 }

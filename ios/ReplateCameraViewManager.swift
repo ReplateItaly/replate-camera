@@ -56,10 +56,11 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     static var sphereRadius = Float(0.0025 * 2)
     static var spheresRadius = Float(0.15)
     static var sphereAngle = Float(5)
-    static var spheresHeight = Float(0.02)
+    static var spheresHeight = Float(0.05)
     static var dragSpeed = CGFloat(7000)
     static var isPaused = false
     static var sessionId: UUID!
+    static var focusModel: ModelEntity!
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -145,12 +146,14 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             ReplateCameraView.spheresModels.forEach { entity in
                 ReplateCameraView.anchorEntity.removeChild(entity)
             }
+            ReplateCameraView.anchorEntity.removeChild(ReplateCameraView.focusModel)
             ReplateCameraView.spheresModels = []
             ReplateCameraView.sphereRadius *= scale
             ReplateCameraView.spheresRadius *= scale
             ReplateCameraView.sphereAngle *= scale
             createSpheres(y: 0 + ReplateCameraView.spheresHeight)
             createSpheres(y: 0.3 + ReplateCameraView.spheresHeight)
+            createFocusSphere()
             for i in 0...71 {
                 let material = SimpleMaterial(color: .green, isMetallic: false)
                 if (ReplateCameraView.upperSpheresSet[i]){
@@ -207,8 +210,18 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             
             createSpheres(y: 0 + ReplateCameraView.spheresHeight)
             createSpheres(y: 0.3 + ReplateCameraView.spheresHeight)
+            createFocusSphere()
             ReplateCameraView.arView.scene.anchors.append(ReplateCameraView.anchorEntity)
         }
+    }
+    
+    func createFocusSphere(){
+        let sphereMesh = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 1.5)
+        let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.7), isMetallic: false)])
+        sphereEntity.position = SIMD3(x: 0, y: ReplateCameraView.spheresHeight + 0.15, z: 0)
+        sphereEntity.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), isMetallic: false)]
+        ReplateCameraView.focusModel = sphereEntity
+        ReplateCameraView.anchorEntity.addChild(sphereEntity)
     }
     
     func createSphere(position: SIMD3<Float>) -> ModelEntity {
@@ -642,7 +655,7 @@ extension ARView: ARCoachingOverlayViewDelegate {
         let callback = ReplateCameraController.completedTutorialCallback
         if (callback != nil){
             callback!([])
-//            ReplateCameraController.completedTutorialCallback = nil
+            ReplateCameraController.completedTutorialCallback = nil
         }
         ReplateCameraView.generateImpactFeedback(strength: .heavy)
         ReplateCameraView.addRecognizer()
