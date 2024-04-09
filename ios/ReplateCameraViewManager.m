@@ -13,7 +13,8 @@ RCT_EXPORT_VIEW_PROPERTY(color, NSString)
 
 @interface RCT_EXTERN_MODULE(ReplateCameraController, NSObject)
 
-RCT_EXTERN_METHOD(takePhoto:(RCTPromiseResolveBlock*)resolve
+RCT_EXTERN_METHOD(takePhoto:(Bool*)unlimited,
+                 resolve:(RCTPromiseResolveBlock*)resolve
                  rejecter:(RCTPromiseRejectBlock)reject)
 
 RCT_EXTERN_METHOD(getPhotosCount:(RCTPromiseResolveBlock*)resolve

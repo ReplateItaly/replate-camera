@@ -61,6 +61,7 @@ class ReplateCameraView : UIView, ARSessionDelegate {
     static var isPaused = false
     static var sessionId: UUID!
     static var focusModel: ModelEntity!
+    static var distanceBetweenCircles = Float(0.2)
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -152,7 +153,7 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             ReplateCameraView.spheresRadius *= scale
             ReplateCameraView.sphereAngle *= scale
             createSpheres(y: 0 + ReplateCameraView.spheresHeight)
-            createSpheres(y: 0.3 + ReplateCameraView.spheresHeight)
+            createSpheres(y: ReplateCameraView.distanceBetweenCircles + ReplateCameraView.spheresHeight)
             createFocusSphere()
             for i in 0...71 {
                 let material = SimpleMaterial(color: .green, isMetallic: false)
@@ -172,6 +173,8 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             break
         }
     }
+    
+    static var initialCameraAngle: Float = 0
     
     @objc private func viewTapped(_ recognizer: UITapGestureRecognizer) {
         print("VIEW TAPPED")
@@ -194,7 +197,19 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         guard let rayCast: ARRaycastResult = result.first
         else { return }
         let anchor = AnchorEntity(world: rayCast.worldTransform)
+        let anchorPosition = SCNVector3(anchor.position(relativeTo: nil).x,
+                                        anchor.position(relativeTo: nil).y,
+                                        anchor.position(relativeTo: nil).z)
+        if let cameraTransform = ReplateCameraView.arView.session.currentFrame?.camera.transform {
+            let cameraPosition = SCNVector3(cameraTransform.columns.3.x,
+                                            cameraTransform.columns.3.y,
+                                            cameraTransform.columns.3.z)
+            ReplateCameraView.initialCameraAngle = ReplateCameraController.calculateAngle(cameraPosition, anchorPosition)
+        }else{}
         print("ANCHOR FOUND\n", anchor.transform)
+        if let cameraTransform = ReplateCameraView.arView.session.currentFrame?.camera.transform {
+            
+        }
         if (ReplateCameraView.model == nil && ReplateCameraView.anchorEntity == nil){
             ReplateCameraView.anchorEntity = anchor
             //            let path = Bundle.main.path(forResource: "anchor", ofType: "usdz")!
@@ -209,7 +224,7 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             //            entity.position = SIMD3(anchorTransform.columns.3.x, anchorTransform.columns.3.y, anchorTransform.columns.3.z)
             
             createSpheres(y: 0 + ReplateCameraView.spheresHeight)
-            createSpheres(y: 0.3 + ReplateCameraView.spheresHeight)
+            createSpheres(y: ReplateCameraView.distanceBetweenCircles + ReplateCameraView.spheresHeight)
             createFocusSphere()
             ReplateCameraView.arView.scene.anchors.append(ReplateCameraView.anchorEntity)
         }
@@ -400,8 +415,8 @@ class ReplateCameraController: NSObject {
         resolver(144 - ReplateCameraView.photosFromDifferentAnglesTaken)
     }
     
-    @objc(takePhoto:rejecter:)
-    func takePhoto(_ resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
+    @objc(takePhoto:resolver:rejecter:)
+    func takePhoto(_ unlimited: Bool, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
         
         //DEVICE ORIENTATION
         guard let anchorNode = ReplateCameraView.anchorEntity else {
@@ -414,7 +429,7 @@ class ReplateCameraController: NSObject {
                                   anchorNode.position(relativeTo: nil).y + ReplateCameraView.spheresHeight,
                                   anchorNode.position(relativeTo: nil).z)
         let point2 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
-                                  anchorNode.position(relativeTo: nil).y + 0.3 + ReplateCameraView.spheresHeight,
+                                  anchorNode.position(relativeTo: nil).y + ReplateCameraView.distanceBetweenCircles + ReplateCameraView.spheresHeight,
                                   anchorNode.position(relativeTo: nil).z)
         
         // Function to calculate the angle between two vectors
@@ -486,11 +501,16 @@ class ReplateCameraController: NSObject {
                     return
                 }
                 
+                let newAngle = updateSpheres(deviceTargetInFocus: deviceTargetInFocus)
+                if(!unlimited && !newAngle){
+                    rejecter("[ReplateCameraController]", "Too many images and the last one's not from a new angle", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
+                    return
+                }
+                
                 print("Saving photo")
                 if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
                     resolver(url.absoluteString)
                     print("Saved photo")
-                    updateSpheres(deviceTargetInFocus: deviceTargetInFocus)
                     return
                 }
             }
@@ -545,8 +565,8 @@ class ReplateCameraController: NSObject {
         }
     }
     
-    func updateSpheres(deviceTargetInFocus: Int) {
-        guard let anchorNode = ReplateCameraView.anchorEntity else { return }
+    func updateSpheres(deviceTargetInFocus: Int) -> Bool{
+        guard let anchorNode = ReplateCameraView.anchorEntity else { return false}
         
         // Get the camera's pose
         if let frame = ReplateCameraView.arView.session.currentFrame {
@@ -560,14 +580,25 @@ class ReplateCameraController: NSObject {
                                             cameraTransform.columns.3.y,
                                             cameraTransform.columns.3.z)
             
-            let angleToAnchor = calculateAngle(cameraPosition, anchorPosition)
+            let angleToAnchor = ReplateCameraController.calculateAngle(cameraPosition, anchorPosition)
             
-            let sphereIndex = Int(floor(angleToAnchor/5))
+            var angleForIndex = angleToAnchor
+            print("Angle: \(angleForIndex), Initial angle: \(ReplateCameraView.initialCameraAngle)")
+            if (angleToAnchor + (80-ReplateCameraView.initialCameraAngle) > 360){
+                angleForIndex = 360-angleForIndex-(80-ReplateCameraView.initialCameraAngle)
+                print("Calculated angle \(angleForIndex)")
+            }else{
+                angleForIndex += (80-ReplateCameraView.initialCameraAngle)
+                print("Calculated angle \(angleForIndex)")
+            }
+            let sphereIndex = Int(floor(angleForIndex/5))
             var mesh: ModelEntity?
+            var newAngle: Bool = false
             if(deviceTargetInFocus == 1 && !ReplateCameraView.upperSpheresSet[sphereIndex]){
                 if(!ReplateCameraView.upperSpheresSet[sphereIndex]){
                     ReplateCameraView.upperSpheresSet[sphereIndex] = true
                     ReplateCameraView.photosFromDifferentAnglesTaken += 1
+                    newAngle = true
                     if(ReplateCameraView.upperSpheresSet.allSatisfy({$0 == true})){
                         let callback = ReplateCameraController.completedUpperSpheresCallback
                         if (callback != nil){
@@ -588,6 +619,7 @@ class ReplateCameraController: NSObject {
                         }
                     }
                     ReplateCameraView.photosFromDifferentAnglesTaken += 1
+                    newAngle = true
                 }
                 mesh = ReplateCameraView.spheresModels[sphereIndex]
             }
@@ -596,10 +628,12 @@ class ReplateCameraController: NSObject {
                 mesh?.model?.materials[0] = material
                 ReplateCameraView.generateImpactFeedback(strength: .medium)
             }
+            return newAngle
         }
+        return false
     }
     
-    func calculateAngle(_ camera: SCNVector3, _ anchor: SCNVector3) -> Float {
+    static func calculateAngle(_ camera: SCNVector3, _ anchor: SCNVector3) -> Float {
         // Calculate the angle in 2D plane (x-z plane) using atan2
         let angle = atan2(camera.z - anchor.z, camera.x - anchor.x)
         
