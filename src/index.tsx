@@ -38,8 +38,8 @@ export const ReplateCameraModule = NativeModules.ReplateCameraController
       }
     );
 
-export function takePhoto(): Promise<string> {
-  return ReplateCameraModule.takePhoto();
+export function takePhoto(unlimited: Boolean): Promise<string> {
+  return ReplateCameraModule.takePhoto(unlimited);
 }
 
 export function getPhotosCount(): Promise<number> {
