@@ -5,7 +5,7 @@ import { ReplateCameraView, takePhoto } from 'replate-camera';
 
 export default function App() {
   setInterval(() => {
-    takePhoto()
+    takePhoto(false)
       .then((uri) => {
         console.log('Photo taken:', uri);
       })

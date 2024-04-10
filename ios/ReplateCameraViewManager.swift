@@ -413,7 +413,7 @@ class ReplateCameraController: NSObject {
     }
     
     @objc(takePhoto:resolver:rejecter:)
-    func takePhoto(_ unlimited: Bool, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
+    func takePhoto(_ unlimited: Bool = false, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
         
         //DEVICE ORIENTATION
         guard let anchorNode = ReplateCameraView.anchorEntity else {
@@ -461,7 +461,7 @@ class ReplateCameraController: NSObject {
             print("Point 1 position: \(point1) Point 2 position: \(point2)")
             print("Angle to first: ", angleToFirstPoint, " Angle to second: ", angleToSecondPoint)
             print("Threshold \(dynamicThreshold)")
-            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraPosition.y < anchorNode.position.y + ReplateCameraView.spheresHeight
+            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraPosition.y <= anchorNode.position.y + ReplateCameraView.spheresHeight
             let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraPosition.y >= anchorNode.position.y + ReplateCameraView.spheresHeight
             if (isPointingAtFirstPoint) {
                 deviceTargetInFocus = 0
@@ -589,6 +589,10 @@ class ReplateCameraController: NSObject {
                 print("Calculated angle \(angleForIndex)")
             }
             let sphereIndex = Int(floor(angleForIndex/5))
+            if(sphereIndex >= 72 || sphereIndex < 0){
+                print("WRONG SPHERE INDEX: \(sphereIndex)")
+                return false
+            }
             var mesh: ModelEntity?
             var newAngle: Bool = false
             if(deviceTargetInFocus == 1 && !ReplateCameraView.upperSpheresSet[sphereIndex]){
