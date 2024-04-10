@@ -181,11 +181,6 @@ class ReplateCameraView : UIView, ARSessionDelegate {
         //        guard !ReplateCameraView.arView.canBecomeFocused else {
         //            return
         //        }
-        let callback = ReplateCameraController.anchorSetCallback
-        if (callback != nil){
-            callback!([])
-            ReplateCameraController.anchorSetCallback = nil
-        }
         let tapLocation: CGPoint = recognizer.location(in: ReplateCameraView.arView)
         let estimatedPlane: ARRaycastQuery.Target = .estimatedPlane
         let alignment: ARRaycastQuery.TargetAlignment = .horizontal
@@ -207,8 +202,10 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             ReplateCameraView.initialCameraAngle = ReplateCameraController.calculateAngle(cameraPosition, anchorPosition)
         }else{}
         print("ANCHOR FOUND\n", anchor.transform)
-        if let cameraTransform = ReplateCameraView.arView.session.currentFrame?.camera.transform {
-            
+        let callback = ReplateCameraController.anchorSetCallback
+        if (callback != nil){
+            callback!([])
+            ReplateCameraController.anchorSetCallback = nil
         }
         if (ReplateCameraView.model == nil && ReplateCameraView.anchorEntity == nil){
             ReplateCameraView.anchorEntity = anchor
