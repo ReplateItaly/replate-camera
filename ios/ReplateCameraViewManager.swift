@@ -223,6 +223,22 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             createSpheres(y: 0 + ReplateCameraView.spheresHeight)
             createSpheres(y: ReplateCameraView.distanceBetweenCircles + ReplateCameraView.spheresHeight)
             createFocusSphere()
+//            let xAxis = MeshResource.generateBox(width: 2, height: 0.001, depth: 0.01)
+//            let xLineEntity = ModelEntity(mesh: xAxis)
+//            xLineEntity.setPosition(SIMD3<Float>(0,0,0), relativeTo: ReplateCameraView.anchorEntity)
+//            // Add material to the line
+//            xLineEntity.model?.materials = [SimpleMaterial(color: .red, isMetallic: false)]
+//            ReplateCameraView.anchorEntity.addChild(xLineEntity)
+//            let yAxis = MeshResource.generateBox(width: 0.01, height: 0.001, depth: 2)
+//            let yLineEntity = ModelEntity(mesh: yAxis)
+//            yLineEntity.setPosition(SIMD3<Float>(0,0,0), relativeTo: ReplateCameraView.anchorEntity)
+//            
+//            // Add material to the line
+//            yLineEntity.model?.materials = [SimpleMaterial(color: .purple, isMetallic: false)]
+//            ReplateCameraView.anchorEntity.addChild(yLineEntity)
+//            let circleEntity = ModelEntity(mesh: MeshResource.generateBox(size: 2, cornerRadius: 1))
+//            circleEntity.setPosition(SIMD3<Float>(0,0,0), relativeTo: ReplateCameraView.anchorEntity)
+//            circleEntity.model?.materials = [SimpleMaterial(color: .yellow, isMetallic: false)]
             ReplateCameraView.arView.scene.anchors.append(ReplateCameraView.anchorEntity)
         }
     }
@@ -251,6 +267,10 @@ class ReplateCameraView : UIView, ARSessionDelegate {
             let z = radius * sin(angle)
             let spherePosition = SIMD3<Float>(x, y, z)
             let sphereEntity = createSphere(position: spherePosition)
+//            if (i == 0){
+//                let material = SimpleMaterial(color: .purple, isMetallic: true)
+//                sphereEntity.model?.materials[0] = material
+//            }
             ReplateCameraView.spheresModels.append(sphereEntity)
             ReplateCameraView.anchorEntity.addChild(sphereEntity)
         }
@@ -581,13 +601,14 @@ class ReplateCameraController: NSObject {
             
             var angleForIndex = angleToAnchor
             print("Angle: \(angleForIndex), Initial angle: \(ReplateCameraView.initialCameraAngle)")
-            if (angleToAnchor + (80-ReplateCameraView.initialCameraAngle) > 360){
-                angleForIndex = 360-angleForIndex-(80-ReplateCameraView.initialCameraAngle)
-                print("Calculated angle \(angleForIndex)")
-            }else{
-                angleForIndex += (80-ReplateCameraView.initialCameraAngle)
-                print("Calculated angle \(angleForIndex)")
-            }
+//            let angleOffset = Float(ReplateCameraView.initialCameraAngle)
+//            if (angleToAnchor + (angleOffset-ReplateCameraView.initialCameraAngle) > 360){
+//                angleForIndex = 360-angleForIndex-(angleOffset-ReplateCameraView.initialCameraAngle)
+//                print("Calculated angle \(angleForIndex)")
+//            }else if(angleOffset-ReplateCameraView.initialCameraAngle < 0){
+//                angleForIndex += (angleOffset-ReplateCameraView.initialCameraAngle)
+//                print("Calculated angle \(angleForIndex)")
+//            }
             let sphereIndex = Int(floor(angleForIndex/5))
             if(sphereIndex >= 72 || sphereIndex < 0){
                 print("WRONG SPHERE INDEX: \(sphereIndex)")
