@@ -192,16 +192,6 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         let anchor = AnchorEntity(world: rayCast.worldTransform)
         //    anchor.orientation = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1)
         //    anchor.transform.rotation = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1)
-        
-        let anchorPosition = SCNVector3(anchor.position(relativeTo: nil).x,
-                                        anchor.position(relativeTo: nil).y,
-                                        anchor.position(relativeTo: nil).z)
-        if let cameraTransform = ReplateCameraView.arView.session.currentFrame?.camera.transform {
-            let cameraPosition = SCNVector3(cameraTransform.columns.3.x,
-                                            cameraTransform.columns.3.y,
-                                            cameraTransform.columns.3.z)
-        } else {
-        }
         print("ANCHOR FOUND\n", anchor.transform)
         let callback = ReplateCameraController.anchorSetCallback
         if (callback != nil) {
@@ -603,10 +593,8 @@ class ReplateCameraController: NSObject {
         // Get the camera's pose
         if let frame = ReplateCameraView.arView.session.currentFrame {
             let cameraTransform = frame.camera.transform
+            
             // Calculate the angle between the camera and the anchor
-            let anchorPosition = SCNVector3(anchorNode.position.x,
-                                            anchorNode.position.y,
-                                            anchorNode.position.z)
             let cameraPosition = SCNVector3(cameraTransform.columns.3.x,
                                             cameraTransform.columns.3.y,
                                             cameraTransform.columns.3.z)
@@ -663,14 +651,18 @@ class ReplateCameraController: NSObject {
     
     static func angleBetweenAnchorXAndCamera(anchor: AnchorEntity, cameraTransform: simd_float4x4) -> Float {
         // Extract the position of the anchor and the camera from their transforms, ignoring the y-axis
-        let anchorPositionXZ = simd_float2(anchor.transform.matrix.columns.3.x, anchor.transform.matrix.columns.3.z)
-        let cameraPositionXZ = simd_float2(cameraTransform.columns.3.x, cameraTransform.columns.3.z)
+        let anchorPositionXZ = simd_float2(anchor.transform.translation.x, anchor.transform.translation.z)
+        
+        // Transform the camera position to the anchor's local space
+        let anchorTransform = anchor.transformMatrix(relativeTo: nil)
+        let relativePosition = anchorTransform.inverse * cameraTransform
+        let relativeCameraPositionXZ = simd_float2(relativePosition.columns.3.x, relativePosition.columns.3.z)
         
         // Calculate the direction vector from the anchor to the camera in the XZ plane
-        let directionXZ = cameraPositionXZ - anchorPositionXZ
+        let directionXZ = relativeCameraPositionXZ - anchorPositionXZ
         
         // Extract the x-axis of the anchor's transform in the XZ plane
-        let anchorXAxisXZ = simd_float2(anchor.transform.matrix.columns.0.x, anchor.transform.matrix.columns.0.z)
+        let anchorXAxisXZ = simd_float2(anchorTransform.columns.0.x, anchorTransform.columns.0.z)
         
         // Calculate the angle between the anchor's x-axis and the direction vector in the XZ plane
         let cosineAngle = simd_dot(anchorXAxisXZ, directionXZ) / (simd_length(anchorXAxisXZ) * simd_length(directionXZ))
@@ -678,6 +670,7 @@ class ReplateCameraController: NSObject {
         
         // Return the angle in degrees
         return angle * (180.0 / .pi)
+
     }
     
 }
