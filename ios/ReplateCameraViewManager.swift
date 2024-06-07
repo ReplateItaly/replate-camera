@@ -205,39 +205,39 @@ class ReplateCameraView: UIView, ARSessionDelegate {
             createFocusSphere()
             
             //DEBUG MESHES
-//            let xAxis = MeshResource.generateBox(width: 2, height: 0.001, depth: 0.01)
-//            let xLineEntity = ModelEntity(mesh: xAxis)
-//            xLineEntity.setPosition(SIMD3<Float>(0, 0, 0), relativeTo: ReplateCameraView.anchorEntity)
-//            xLineEntity.model?.materials = [SimpleMaterial(color: .red, isMetallic: false)]
-//            ReplateCameraView.anchorEntity.addChild(xLineEntity)
-//            let xLineLeftSphere = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 5)
-//            let xLineLeftSphereEntity = ModelEntity(mesh: xLineLeftSphere)
-//            ReplateCameraView.anchorEntity.addChild(xLineLeftSphereEntity)
-//            xLineLeftSphereEntity.setPosition(SIMD3<Float>(-1, 0.002, 0), relativeTo: ReplateCameraView.anchorEntity)
-//            xLineLeftSphereEntity.model?.materials = [SimpleMaterial(color: .red, isMetallic: false)]
-//            let xLineRightSphere = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 5)
-//            let xLineRightSphereEntity = ModelEntity(mesh: xLineRightSphere)
-//            ReplateCameraView.anchorEntity.addChild(xLineRightSphereEntity)
-//            xLineRightSphereEntity.setPosition(SIMD3<Float>(1, 0.002, 0), relativeTo: ReplateCameraView.anchorEntity)
-//            xLineRightSphereEntity.model?.materials = [SimpleMaterial(color: .yellow, isMetallic: false)]
-//            let yAxis = MeshResource.generateBox(width: 0.01, height: 0.001, depth: 2)
-//            let yLineEntity = ModelEntity(mesh: yAxis)
-//            yLineEntity.setPosition(SIMD3<Float>(0, 0, 0), relativeTo: ReplateCameraView.anchorEntity)
-//            let yLineLeftSphere = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 5)
-//            let yLineLeftSphereEntity = ModelEntity(mesh: yLineLeftSphere)
-//            ReplateCameraView.anchorEntity.addChild(yLineLeftSphereEntity)
-//            yLineLeftSphereEntity.setPosition(SIMD3<Float>(0, 0.002, -1), relativeTo: ReplateCameraView.anchorEntity)
-//            yLineLeftSphereEntity.model?.materials = [SimpleMaterial(color: .systemPink, isMetallic: false)]
-//            let yLineRightSphere = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 5)
-//            let yLineRightSphereEntity = ModelEntity(mesh: yLineRightSphere)
-//            ReplateCameraView.anchorEntity.addChild(yLineRightSphereEntity)
-//            yLineRightSphereEntity.setPosition(SIMD3<Float>(0, 0.002, 1), relativeTo: ReplateCameraView.anchorEntity)
-//            yLineRightSphereEntity.model?.materials = [SimpleMaterial(color: .orange, isMetallic: false)]
-//            yLineEntity.model?.materials = [SimpleMaterial(color: .purple, isMetallic: false)]
-//            ReplateCameraView.anchorEntity.addChild(yLineEntity)
-//            let circleEntity = ModelEntity(mesh: MeshResource.generateBox(size: 2, cornerRadius: 1))
-//            circleEntity.setPosition(SIMD3<Float>(0, 0, 0), relativeTo: ReplateCameraView.anchorEntity)
-//            circleEntity.model?.materials = [SimpleMaterial(color: .yellow, isMetallic: false)]
+            //            let xAxis = MeshResource.generateBox(width: 2, height: 0.001, depth: 0.01)
+            //            let xLineEntity = ModelEntity(mesh: xAxis)
+            //            xLineEntity.setPosition(SIMD3<Float>(0, 0, 0), relativeTo: ReplateCameraView.anchorEntity)
+            //            xLineEntity.model?.materials = [SimpleMaterial(color: .red, isMetallic: false)]
+            //            ReplateCameraView.anchorEntity.addChild(xLineEntity)
+            //            let xLineLeftSphere = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 5)
+            //            let xLineLeftSphereEntity = ModelEntity(mesh: xLineLeftSphere)
+            //            ReplateCameraView.anchorEntity.addChild(xLineLeftSphereEntity)
+            //            xLineLeftSphereEntity.setPosition(SIMD3<Float>(-1, 0.002, 0), relativeTo: ReplateCameraView.anchorEntity)
+            //            xLineLeftSphereEntity.model?.materials = [SimpleMaterial(color: .red, isMetallic: false)]
+            //            let xLineRightSphere = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 5)
+            //            let xLineRightSphereEntity = ModelEntity(mesh: xLineRightSphere)
+            //            ReplateCameraView.anchorEntity.addChild(xLineRightSphereEntity)
+            //            xLineRightSphereEntity.setPosition(SIMD3<Float>(1, 0.002, 0), relativeTo: ReplateCameraView.anchorEntity)
+            //            xLineRightSphereEntity.model?.materials = [SimpleMaterial(color: .yellow, isMetallic: false)]
+            //            let yAxis = MeshResource.generateBox(width: 0.01, height: 0.001, depth: 2)
+            //            let yLineEntity = ModelEntity(mesh: yAxis)
+            //            yLineEntity.setPosition(SIMD3<Float>(0, 0, 0), relativeTo: ReplateCameraView.anchorEntity)
+            //            let yLineLeftSphere = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 5)
+            //            let yLineLeftSphereEntity = ModelEntity(mesh: yLineLeftSphere)
+            //            ReplateCameraView.anchorEntity.addChild(yLineLeftSphereEntity)
+            //            yLineLeftSphereEntity.setPosition(SIMD3<Float>(0, 0.002, -1), relativeTo: ReplateCameraView.anchorEntity)
+            //            yLineLeftSphereEntity.model?.materials = [SimpleMaterial(color: .systemPink, isMetallic: false)]
+            //            let yLineRightSphere = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 5)
+            //            let yLineRightSphereEntity = ModelEntity(mesh: yLineRightSphere)
+            //            ReplateCameraView.anchorEntity.addChild(yLineRightSphereEntity)
+            //            yLineRightSphereEntity.setPosition(SIMD3<Float>(0, 0.002, 1), relativeTo: ReplateCameraView.anchorEntity)
+            //            yLineRightSphereEntity.model?.materials = [SimpleMaterial(color: .orange, isMetallic: false)]
+            //            yLineEntity.model?.materials = [SimpleMaterial(color: .purple, isMetallic: false)]
+            //            ReplateCameraView.anchorEntity.addChild(yLineEntity)
+            //            let circleEntity = ModelEntity(mesh: MeshResource.generateBox(size: 2, cornerRadius: 1))
+            //            circleEntity.setPosition(SIMD3<Float>(0, 0, 0), relativeTo: ReplateCameraView.anchorEntity)
+            //            circleEntity.model?.materials = [SimpleMaterial(color: .yellow, isMetallic: false)]
             
             
             ReplateCameraView.arView.scene.anchors.append(ReplateCameraView.anchorEntity)
@@ -652,7 +652,6 @@ class ReplateCameraController: NSObject {
     static func angleBetweenAnchorXAndCamera(anchor: AnchorEntity, cameraTransform: simd_float4x4) -> Float {
         // Extract the position of the anchor and the camera from their transforms, ignoring the y-axis
         let anchorPositionXZ = simd_float2(anchor.transform.translation.x, anchor.transform.translation.z)
-        
         // Transform the camera position to the anchor's local space
         let anchorTransform = anchor.transformMatrix(relativeTo: nil)
         let relativePosition = anchorTransform.inverse * cameraTransform
@@ -664,13 +663,18 @@ class ReplateCameraController: NSObject {
         // Extract the x-axis of the anchor's transform in the XZ plane
         let anchorXAxisXZ = simd_float2(anchorTransform.columns.0.x, anchorTransform.columns.0.z)
         
-        // Calculate the angle between the anchor's x-axis and the direction vector in the XZ plane
-        let cosineAngle = simd_dot(anchorXAxisXZ, directionXZ) / (simd_length(anchorXAxisXZ) * simd_length(directionXZ))
-        let angle = acos(cosineAngle)
+        // Use atan2 to calculate the angle between the anchor's x-axis and the direction vector in the XZ plane
+        let angle = atan2(directionXZ.y, directionXZ.x) - atan2(anchorXAxisXZ.y, anchorXAxisXZ.x)
         
-        // Return the angle in degrees
-        return angle * (180.0 / .pi)
-
+        // Convert the angle to degrees
+        var angleDegrees = angle * (180.0 / .pi)
+        
+        // Ensure the angle is within the range [0, 360)
+        if angleDegrees < 0 {
+            angleDegrees += 360
+        }
+        
+        return angleDegrees
     }
     
 }
