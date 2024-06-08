@@ -484,8 +484,10 @@ class ReplateCameraController: NSObject {
             print("Point 1 position: \(point1) Point 2 position: \(point2)")
             print("Angle to first: ", angleToFirstPoint, " Angle to second: ", angleToSecondPoint)
             print("Threshold \(dynamicThreshold)")
-            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraPosition.y < anchorNode.position.y + ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles /  2)
-            let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraPosition.y >= anchorNode.position.y + ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles /  2)
+            let anchorTransform = anchorNode.transformMatrix(relativeTo: nil)
+            let relativePosition = anchorTransform.inverse * cameraTransform
+            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && relativePosition.columns.3.y < ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles /  2)
+            let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && relativePosition.columns.3.y >= ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles /  2)
             if (isPointingAtFirstPoint) {
                 deviceTargetInFocus = 0
             } else if (isPointingAtSecondPoint) {
@@ -602,7 +604,7 @@ class ReplateCameraController: NSObject {
             print("ANGLE: \(angleDegrees)")
             // Convert angle to a 0-71 index range
             // Ensure we floor the value so that we get a whole number for the index
-            let sphereIndex = max(Int(floor(angleDegrees / 5.0 - 2.5)), 0) % 72 // Ensure sphereIndex stays within 0-71 bounds
+            let sphereIndex = max(Int(round(angleDegrees / 5.0 - 2.5)), 0) % 72 // Ensure sphereIndex stays within 0-71 bounds
             print("---- METRICHE DA DEBUGGARE: -----")
             print(sphereIndex)
             print(anchorNode.position.y + ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles /  2))
