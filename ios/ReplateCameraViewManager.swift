@@ -63,6 +63,8 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var focusModel: ModelEntity!
     static var distanceBetweenCircles = Float(0.2)
     
+    
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
         requestCameraPermissions()
@@ -289,6 +291,21 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         addSubview(ReplateCameraView.arView)
         ReplateCameraView.arView.session.delegate = self
         let configuration = ARWorldTrackingConfiguration()
+        configuration.videoFormat = ARWorldTrackingConfiguration.supportedVideoFormats.first(where: {
+                // replace with your desired frame rate range
+                (30...45).contains($0.framesPerSecond)
+        }) ?? ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
+            let resolution1 = format1.imageResolution.width * format1.imageResolution.height
+            let resolution2 = format2.imageResolution.width * format2.imageResolution.height
+            return resolution1 < resolution2
+        })!
+        ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableMotionBlur)
+        ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableCameraGrain)
+        ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableAREnvironmentLighting)
+        ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableHDR)
+        ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableFaceMesh)
+        ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableGroundingShadows)
+        ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disablePersonOcclusion)
         //        guard let obj = ARReferenceObject.referenceObjects(inGroupNamed: "AR Resource Group",
         //                                                           bundle: nil)
         //        else { fatalError("See no reference object") }
@@ -298,21 +315,21 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         //                    .showAnchorOrigins,
         //                    .showAnchorGeometry
         //                ]
-        if #available(iOS 16.0, *) {
-            print("recommendedVideoFormatForHighResolutionFrameCapturing")
-            configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.recommendedVideoFormatFor4KResolution ?? ARWorldTrackingConfiguration.supportedVideoFormats[0]
-        } else {
-            print("Alternative high resolution method")
-            let maxResolutionFormat = ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
-                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
-                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
-                return resolution1 < resolution2
-            })!
-            configuration.videoFormat = maxResolutionFormat
-        }
+        ReplateCameraView.arView.debugOptions = [.showStatistics]
+//        if #available(iOS 16.0, *) {
+//            print("recommendedVideoFormatForHighResolutionFrameCapturing")
+//            configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.recommendedVideoFormatFor4KResolution ?? ARWorldTrackingConfiguration.supportedVideoFormats[0]
+//        } else {
+//            print("Alternative high resolution method")
+//            let maxResolutionFormat = ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
+//                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
+//                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
+//                return resolution1 < resolution2
+//            })!
+//            configuration.videoFormat = maxResolutionFormat
+//        }
         //        configuration.detectionObjects = obj
         ReplateCameraView.arView.session.run(configuration)
-        
         ReplateCameraView.arView.addCoaching()
         ReplateCameraView.sessionId = ReplateCameraView.arView.session.identifier
     }
@@ -510,10 +527,10 @@ class ReplateCameraController: NSObject {
                 let uiImage = UIImage(cgImage: cgImage)
                 let finImage = uiImage.rotate(radians: .pi / 2) // Adjust radians as needed
                 
-                guard let components = finImage.averageColor()?.getRGBComponents() else {
-                    rejecter("[ReplateCameraController]", "Cannot get color components", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
-                    return
-                }
+//                guard let components = finImage.averageColor()?.getRGBComponents() else {
+//                    rejecter("[ReplateCameraController]", "Cannot get color components", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
+//                    return
+//                }
                 
                 //Disabled to boost perfomances
 //                let averagePixelColor = (components.red + components.blue + components.green) / 3
