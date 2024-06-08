@@ -437,22 +437,21 @@ class ReplateCameraController: NSObject {
     
     @objc(takePhoto:resolver:rejecter:)
     func takePhoto(_ unlimited: Bool = false, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
-        
-        //DEVICE ORIENTATION
+        // DEVICE ORIENTATION
         guard let anchorNode = ReplateCameraView.anchorEntity else {
-            rejecter("[ReplateCameraController]", "No anchor set yet", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil));
+            rejecter("[ReplateCameraController]", "No anchor set yet", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
             return
         }
         
-        // Assuming you have two points
-        let point1 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
-                                  anchorNode.position(relativeTo: nil).y + ReplateCameraView.spheresHeight,
-                                  anchorNode.position(relativeTo: nil).z)
-        let point2 = SIMD3<Float>(anchorNode.position(relativeTo: nil).x,
-                                  anchorNode.position(relativeTo: nil).y + ReplateCameraView.distanceBetweenCircles + ReplateCameraView.spheresHeight,
-                                  anchorNode.position(relativeTo: nil).z)
+        // Calculate anchor position and height-related constants once
+        let anchorPosition = SIMD3<Float>(anchorNode.position(relativeTo: nil))
+        let spheresHeight = ReplateCameraView.spheresHeight
+        let distanceBetweenCircles = ReplateCameraView.distanceBetweenCircles
         
-        // Function to calculate the angle between two vectors
+        let point1 = SIMD3<Float>(anchorPosition.x, anchorPosition.y + spheresHeight, anchorPosition.z)
+        let point2 = SIMD3<Float>(anchorPosition.x, anchorPosition.y + distanceBetweenCircles + spheresHeight, anchorPosition.z)
+        
+        // Helper function to calculate angle between two vectors
         func angleBetweenVectors(_ vector1: SIMD3<Float>, _ vector2: SIMD3<Float>) -> Float {
             let dotProduct = dot(normalize(vector1), normalize(vector2))
             return acos(dotProduct)
@@ -460,11 +459,12 @@ class ReplateCameraController: NSObject {
         
         // Threshold angle for considering if the device is pointing towards a point
         var deviceTargetInFocus = -1
+        
         // Check if the device is pointing towards one of the two points
         if let cameraTransform = ReplateCameraView.arView.session.currentFrame?.camera.transform {
-            let deviceDirection = SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z)
-            
             let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
+            let deviceDirection = normalize(SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z))
+            
             let directionToFirstPoint = normalize(point1 - cameraPosition)
             let directionToSecondPoint = normalize(point2 - cameraPosition)
             
@@ -472,27 +472,24 @@ class ReplateCameraController: NSObject {
             let point2Distance = distance(point2, cameraPosition)
             let averageDistance = (point1Distance + point2Distance) / 2.0
             
-            let baseThreshold: Float = 0.6  // adjust as needed
-            let distanceFactor: Float = 0.2  // adjust as needed
+            let baseThreshold: Float = 0.6  // Adjust as needed
+            let distanceFactor: Float = 0.2  // Adjust as needed
             
             let dynamicThreshold = baseThreshold + distanceFactor * sqrt(averageDistance)
-            
-            
             let angleToFirstPoint = angleBetweenVectors(deviceDirection, directionToFirstPoint)
             let angleToSecondPoint = angleBetweenVectors(deviceDirection, directionToSecondPoint)
-            print("Camera: \(cameraPosition)")
-            print("Point 1 position: \(point1) Point 2 position: \(point2)")
-            print("Angle to first: ", angleToFirstPoint, " Angle to second: ", angleToSecondPoint)
-            print("Threshold \(dynamicThreshold)")
+            
             let anchorTransform = anchorNode.transformMatrix(relativeTo: nil)
-            let relativePosition = anchorTransform.inverse * cameraTransform
-            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && relativePosition.columns.3.y < ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles / 3 * 2)
-            let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && relativePosition.columns.3.y >= ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles / 3 * 2)
-            if (isPointingAtFirstPoint) {
+            let cameraHeight = abs(spheresHeight + (distanceBetweenCircles / 3 * 2) + anchorTransform.columns.3.y) - cameraPosition.y
+            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraHeight > 0
+            let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraHeight <= 0
+            
+            if isPointingAtFirstPoint {
                 deviceTargetInFocus = 0
-            } else if (isPointingAtSecondPoint) {
+            } else if isPointingAtSecondPoint {
                 deviceTargetInFocus = 1
             }
+            
             // Now you can determine if the device is pointing towards one of the two points
             print("Is pointing at first point: \(isPointingAtFirstPoint)")
             print("Is pointing at second point: \(isPointingAtSecondPoint)")
@@ -503,28 +500,31 @@ class ReplateCameraController: NSObject {
         }
         
         print("Take photo")
-        if (deviceTargetInFocus != -1) {
+        if deviceTargetInFocus != -1 {
             if let image = ReplateCameraView.arView?.session.currentFrame?.capturedImage {
-                let ciimg = CIImage(cvImageBuffer: image)
-                let ciImage = ciimg
-                let cgImage = ReplateCameraController.cgImage(from: ciImage)!
+                let ciImage = CIImage(cvImageBuffer: image)
+                guard let cgImage = ReplateCameraController.cgImage(from: ciImage) else {
+                    rejecter("[ReplateCameraController]", "Error converting CIImage to CGImage", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
+                    return
+                }
                 let uiImage = UIImage(cgImage: cgImage)
                 let finImage = uiImage.rotate(radians: .pi / 2) // Adjust radians as needed
                 
-                guard let components = finImage.averageColor()?.getRGBComponents()
-                else {
+                guard let components = finImage.averageColor()?.getRGBComponents() else {
                     rejecter("[ReplateCameraController]", "Cannot get color components", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
                     return
                 }
-                let averagePixelColor = components.red + components.blue + components.green / 3
-                print("Average pixel color: \(averagePixelColor)")
-                if ((components.red + components.blue + components.green) / 3 < 0.15) {
-                    rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
-                    return
-                }
+                
+                //Disabled to boost perfomances
+//                let averagePixelColor = (components.red + components.blue + components.green) / 3
+//                print("Average pixel color: \(averagePixelColor)")
+//                if averagePixelColor < 0.15 {
+//                    rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
+//                    return
+//                }
                 
                 let newAngle = updateSpheres(deviceTargetInFocus: deviceTargetInFocus)
-                if (!unlimited && !newAngle) {
+                if !unlimited && !newAngle {
                     rejecter("[ReplateCameraController]", "Too many images and the last one's not from a new angle", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
                     return
                 }
@@ -534,6 +534,9 @@ class ReplateCameraController: NSObject {
                     resolver(url.absoluteString)
                     print("Saved photo")
                     return
+                } else {
+                    rejecter("[ReplateCameraController]", "Error saving photo", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
+                    return
                 }
             }
         } else {
@@ -541,9 +544,7 @@ class ReplateCameraController: NSObject {
             return
         }
         
-        print("Error saving photo")
         rejecter("[ReplateCameraController]", "Error saving photo", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
-        
     }
     
     
@@ -593,62 +594,53 @@ class ReplateCameraController: NSObject {
         }
         
         // Get the camera's pose
-        if let frame = ReplateCameraView.arView.session.currentFrame {
-            let cameraTransform = frame.camera.transform
-            
-            // Calculate the angle between the camera and the anchor
-            let cameraPosition = SCNVector3(cameraTransform.columns.3.x,
-                                            cameraTransform.columns.3.y,
-                                            cameraTransform.columns.3.z)
-            let angleDegrees = ReplateCameraController.angleBetweenAnchorXAndCamera(anchor: anchorNode, cameraTransform: cameraTransform)
-            print("ANGLE: \(angleDegrees)")
-            // Convert angle to a 0-71 index range
-            // Ensure we floor the value so that we get a whole number for the index
-            let sphereIndex = max(Int(round(angleDegrees / 5.0)), 0) % 72 // Ensure sphereIndex stays within 0-71 bounds
-            print("---- METRICHE DA DEBUGGARE: -----")
-            print(sphereIndex)
-            print(anchorNode.position.y + ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles /  2))
-            print(cameraPosition.y)
-            print("--------")
-            var mesh: ModelEntity?
-            var newAngle: Bool = false
-            if (deviceTargetInFocus == 1 && !ReplateCameraView.upperSpheresSet[sphereIndex]) {
-                if (!ReplateCameraView.upperSpheresSet[sphereIndex]) {
-                    ReplateCameraView.upperSpheresSet[sphereIndex] = true
-                    ReplateCameraView.photosFromDifferentAnglesTaken += 1
-                    newAngle = true
-                    if (ReplateCameraView.upperSpheresSet.allSatisfy({ $0 == true })) {
-                        let callback = ReplateCameraController.completedUpperSpheresCallback
-                        if (callback != nil) {
-                            callback!([])
-                            ReplateCameraController.completedUpperSpheresCallback = nil
-                        }
-                    }
-                }
-                mesh = ReplateCameraView.spheresModels[72 + sphereIndex]
-            } else if (deviceTargetInFocus == 0 && !ReplateCameraView.lowerSpheresSet[sphereIndex]) {
-                if (!ReplateCameraView.lowerSpheresSet[sphereIndex]) {
-                    ReplateCameraView.lowerSpheresSet[sphereIndex] = true
-                    if (ReplateCameraView.lowerSpheresSet.allSatisfy({ $0 == true })) {
-                        let callback = ReplateCameraController.completedLowerSpheresCallback
-                        if (callback != nil) {
-                            callback!([])
-                            ReplateCameraController.completedLowerSpheresCallback = nil
-                        }
-                    }
-                    ReplateCameraView.photosFromDifferentAnglesTaken += 1
-                    newAngle = true
-                }
-                mesh = ReplateCameraView.spheresModels[sphereIndex]
-            }
-            if (mesh != nil) {
-                let material = SimpleMaterial(color: .green, isMetallic: false)
-                mesh?.model?.materials[0] = material
-                ReplateCameraView.generateImpactFeedback(strength: .medium)
-            }
-            return newAngle
+        guard let frame = ReplateCameraView.arView.session.currentFrame else {
+            return false
         }
-        return false
+        
+        let cameraTransform = frame.camera.transform
+        
+        // Calculate the angle between the camera and the anchor
+        let angleDegrees = ReplateCameraController.angleBetweenAnchorXAndCamera(anchor: anchorNode, cameraTransform: cameraTransform)
+        let sphereIndex = max(Int(round(angleDegrees / 5.0)), 0) % 72 // Ensure sphereIndex stays within 0-71 bounds
+        
+        var mesh: ModelEntity?
+        var newAngle = false
+        var callback: RCTResponseSenderBlock? = nil
+        
+        if deviceTargetInFocus == 1 {
+            if !ReplateCameraView.upperSpheresSet[sphereIndex] {
+                ReplateCameraView.upperSpheresSet[sphereIndex] = true
+                ReplateCameraView.photosFromDifferentAnglesTaken += 1
+                newAngle = true
+                mesh = ReplateCameraView.spheresModels[72 + sphereIndex]
+                if ReplateCameraView.upperSpheresSet.allSatisfy({ $0 }) {
+                    callback = ReplateCameraController.completedUpperSpheresCallback
+                    ReplateCameraController.completedUpperSpheresCallback = nil
+                }
+            }
+        } else if deviceTargetInFocus == 0 {
+            if !ReplateCameraView.lowerSpheresSet[sphereIndex] {
+                ReplateCameraView.lowerSpheresSet[sphereIndex] = true
+                ReplateCameraView.photosFromDifferentAnglesTaken += 1
+                newAngle = true
+                mesh = ReplateCameraView.spheresModels[sphereIndex]
+                if ReplateCameraView.lowerSpheresSet.allSatisfy({ $0 }) {
+                    callback = ReplateCameraController.completedLowerSpheresCallback
+                    ReplateCameraController.completedLowerSpheresCallback = nil
+                }
+            }
+        }
+        
+        if let mesh = mesh {
+            let material = SimpleMaterial(color: .green, isMetallic: false)
+            mesh.model?.materials[0] = material
+            ReplateCameraView.generateImpactFeedback(strength: .medium)
+        }
+        
+        callback?([])
+        
+        return newAngle
     }
     
     static func angleBetweenAnchorXAndCamera(anchor: AnchorEntity, cameraTransform: simd_float4x4) -> Float {
