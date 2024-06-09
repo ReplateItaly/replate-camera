@@ -315,7 +315,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         //                    .showAnchorOrigins,
         //                    .showAnchorGeometry
         //                ]
-        ReplateCameraView.arView.debugOptions = [.showStatistics]
+//        ReplateCameraView.arView.debugOptions = [.showStatistics]
 //        if #available(iOS 16.0, *) {
 //            print("recommendedVideoFormatForHighResolutionFrameCapturing")
 //            configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.recommendedVideoFormatFor4KResolution ?? ARWorldTrackingConfiguration.supportedVideoFormats[0]
@@ -467,7 +467,8 @@ class ReplateCameraController: NSObject {
         // Precomputed points
         let point1Y = anchorPosition.y + spheresHeight
         let point2Y = anchorPosition.y + distanceBetweenCircles + spheresHeight
-        
+        let twoThirdsDistance = point1Y + (2 / 3) * (point2Y - point1Y)
+
         var deviceTargetInFocus = -1
         
         // Simple angle threshold for checking if looking at anchor
@@ -483,7 +484,7 @@ class ReplateCameraController: NSObject {
             if angleToAnchor < angleThreshold {
                 // Use camera height to determine if looking at point1 or point2
                 let cameraHeight = cameraPosition.y
-                if abs(cameraHeight - point1Y) < abs(cameraHeight - point2Y) {
+                if cameraHeight < twoThirdsDistance {
                     deviceTargetInFocus = 0
                     print("Is pointing at first point")
                 } else {
