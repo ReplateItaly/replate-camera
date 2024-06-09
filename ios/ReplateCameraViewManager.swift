@@ -454,62 +454,45 @@ class ReplateCameraController: NSObject {
     
     @objc(takePhoto:resolver:rejecter:)
     func takePhoto(_ unlimited: Bool = false, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
-        // DEVICE ORIENTATION
         guard let anchorNode = ReplateCameraView.anchorEntity else {
             rejecter("[ReplateCameraController]", "No anchor set yet", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
             return
         }
         
         // Calculate anchor position and height-related constants once
-        let anchorPosition = SIMD3<Float>(anchorNode.position(relativeTo: nil))
+        let anchorPosition = anchorNode.position(relativeTo: nil)
         let spheresHeight = ReplateCameraView.spheresHeight
         let distanceBetweenCircles = ReplateCameraView.distanceBetweenCircles
         
-        let point1 = SIMD3<Float>(anchorPosition.x, anchorPosition.y + spheresHeight, anchorPosition.z)
-        let point2 = SIMD3<Float>(anchorPosition.x, anchorPosition.y + distanceBetweenCircles + spheresHeight, anchorPosition.z)
+        // Precomputed points
+        let point1Y = anchorPosition.y + spheresHeight
+        let point2Y = anchorPosition.y + distanceBetweenCircles + spheresHeight
         
-        // Helper function to calculate angle between two vectors
-        func angleBetweenVectors(_ vector1: SIMD3<Float>, _ vector2: SIMD3<Float>) -> Float {
-            let dotProduct = dot(normalize(vector1), normalize(vector2))
-            return acos(dotProduct)
-        }
-        
-        // Threshold angle for considering if the device is pointing towards a point
         var deviceTargetInFocus = -1
         
-        // Check if the device is pointing towards one of the two points
+        // Simple angle threshold for checking if looking at anchor
+        let angleThreshold: Float = 0.6  // Adjustable
+        
         if let cameraTransform = ReplateCameraView.arView.session.currentFrame?.camera.transform {
             let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
             let deviceDirection = normalize(SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z))
+            let directionToAnchor = normalize(anchorPosition - cameraPosition)
+            let angleToAnchor = acos(dot(deviceDirection, directionToAnchor))
             
-            let directionToFirstPoint = normalize(point1 - cameraPosition)
-            let directionToSecondPoint = normalize(point2 - cameraPosition)
-            
-            let point1Distance = distance(point1, cameraPosition)
-            let point2Distance = distance(point2, cameraPosition)
-            let averageDistance = (point1Distance + point2Distance) / 2.0
-            
-            let baseThreshold: Float = 0.6  // Adjust as needed
-            let distanceFactor: Float = 0.2  // Adjust as needed
-            
-            let dynamicThreshold = baseThreshold + distanceFactor * sqrt(averageDistance)
-            let angleToFirstPoint = angleBetweenVectors(deviceDirection, directionToFirstPoint)
-            let angleToSecondPoint = angleBetweenVectors(deviceDirection, directionToSecondPoint)
-            
-            let anchorTransform = anchorNode.transformMatrix(relativeTo: nil)
-            let cameraHeight = abs(spheresHeight + (distanceBetweenCircles / 3 * 2) + anchorTransform.columns.3.y) - cameraPosition.y
-            let isPointingAtFirstPoint = angleToFirstPoint < dynamicThreshold && cameraHeight > 0
-            let isPointingAtSecondPoint = angleToSecondPoint < dynamicThreshold && cameraHeight <= 0
-            
-            if isPointingAtFirstPoint {
-                deviceTargetInFocus = 0
-            } else if isPointingAtSecondPoint {
-                deviceTargetInFocus = 1
+            // Check if camera is looking at the anchor
+            if angleToAnchor < angleThreshold {
+                // Use camera height to determine if looking at point1 or point2
+                let cameraHeight = cameraPosition.y
+                if abs(cameraHeight - point1Y) < abs(cameraHeight - point2Y) {
+                    deviceTargetInFocus = 0
+                    print("Is pointing at first point")
+                } else {
+                    deviceTargetInFocus = 1
+                    print("Is pointing at second point")
+                }
+            } else {
+                print("Not pointing at anchor")
             }
-            
-            // Now you can determine if the device is pointing towards one of the two points
-            print("Is pointing at first point: \(isPointingAtFirstPoint)")
-            print("Is pointing at second point: \(isPointingAtSecondPoint)")
         } else {
             print("Camera transform data not available")
             rejecter("[ReplateCameraController]", "Camera transform data not available", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
@@ -518,6 +501,12 @@ class ReplateCameraController: NSObject {
         
         print("Take photo")
         if deviceTargetInFocus != -1 {
+            let newAngle = updateSpheres(deviceTargetInFocus: deviceTargetInFocus)
+            if !unlimited && !newAngle {
+                rejecter("[ReplateCameraController]", "Too many images and the last one's not from a new angle", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
+                return
+            }
+            
             if let image = ReplateCameraView.arView?.session.currentFrame?.capturedImage {
                 let ciImage = CIImage(cvImageBuffer: image)
                 guard let cgImage = ReplateCameraController.cgImage(from: ciImage) else {
@@ -539,12 +528,6 @@ class ReplateCameraController: NSObject {
 //                    rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
 //                    return
 //                }
-                
-                let newAngle = updateSpheres(deviceTargetInFocus: deviceTargetInFocus)
-                if !unlimited && !newAngle {
-                    rejecter("[ReplateCameraController]", "Too many images and the last one's not from a new angle", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
-                    return
-                }
                 
                 print("Saving photo")
                 if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
