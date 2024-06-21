@@ -56,12 +56,12 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var sphereRadius = Float(0.0025 * 2)
     static var spheresRadius = Float(0.15)
     static var sphereAngle = Float(5)
-    static var spheresHeight = Float(0.15)
+    static var spheresHeight = Float(0.3)
     static var dragSpeed = CGFloat(7000)
     static var isPaused = false
     static var sessionId: UUID!
     static var focusModel: ModelEntity!
-    static var distanceBetweenCircles = Float(0.2)
+    static var distanceBetweenCircles = Float(0.15)
     
     
     
@@ -496,7 +496,7 @@ class ReplateCameraController: NSObject {
             }
         } else {
             print("Camera transform data not available")
-            rejecter("[ReplateCameraController]", "Camera transform data not available", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
+            rejecter("[ReplateCameraController]", "Camera transform data not available", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
             return
         }
         
@@ -517,18 +517,17 @@ class ReplateCameraController: NSObject {
                 let uiImage = UIImage(cgImage: cgImage)
                 let finImage = uiImage.rotate(radians: .pi / 2) // Adjust radians as needed
                 
-//                guard let components = finImage.averageColor()?.getRGBComponents() else {
-//                    rejecter("[ReplateCameraController]", "Cannot get color components", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
-//                    return
-//                }
+                guard let components = finImage.averageColor()?.getRGBComponents() else {
+                    rejecter("[ReplateCameraController]", "Cannot get color components", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
+                    return
+                }
                 
-                //Disabled to boost perfomances
-//                let averagePixelColor = (components.red + components.blue + components.green) / 3
-//                print("Average pixel color: \(averagePixelColor)")
-//                if averagePixelColor < 0.15 {
-//                    rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
-//                    return
-//                }
+                let averagePixelColor = (components.red + components.blue + components.green) / 3
+                print("Average pixel color: \(averagePixelColor)")
+                if averagePixelColor < 0.15 {
+                    rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
+                    return
+                }
                 
                 print("Saving photo")
                 if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
