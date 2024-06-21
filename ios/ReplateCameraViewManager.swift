@@ -607,7 +607,7 @@ class ReplateCameraController: NSObject {
         var mesh: ModelEntity?
         var newAngle = false
         var callback: RCTResponseSenderBlock? = nil
-        
+        print("Sphere index \(sphereIndex) - Spheres length \(ReplateCameraView.spheresModels.count)")
         if deviceTargetInFocus == 1 {
             if !ReplateCameraView.upperSpheresSet[sphereIndex] {
                 ReplateCameraView.upperSpheresSet[sphereIndex] = true
