@@ -291,14 +291,20 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         addSubview(ReplateCameraView.arView)
         ReplateCameraView.arView.session.delegate = self
         let configuration = ARWorldTrackingConfiguration()
-        configuration.videoFormat = ARWorldTrackingConfiguration.supportedVideoFormats.first(where: {
-                // replace with your desired frame rate range
-                (30...45).contains($0.framesPerSecond)
-        }) ?? ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
-            let resolution1 = format1.imageResolution.width * format1.imageResolution.height
-            let resolution2 = format2.imageResolution.width * format2.imageResolution.height
-            return resolution1 < resolution2
-        })!
+//        if #available(iOS 16.0, *) {
+//            configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
+//                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
+//                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
+//                return resolution1 < resolution2
+//            })!
+//        } else {
+//            configuration.videoFormat = ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
+//                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
+//                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
+//                return resolution1 < resolution2
+//            })!
+//        }
+                                                                                               
         ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableMotionBlur)
         ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableCameraGrain)
         ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableAREnvironmentLighting)
@@ -316,19 +322,23 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         //                    .showAnchorGeometry
         //                ]
 //        ReplateCameraView.arView.debugOptions = [.showStatistics]
-//        if #available(iOS 16.0, *) {
-//            print("recommendedVideoFormatForHighResolutionFrameCapturing")
-//            configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.recommendedVideoFormatFor4KResolution ?? ARWorldTrackingConfiguration.supportedVideoFormats[0]
-//        } else {
-//            print("Alternative high resolution method")
-//            let maxResolutionFormat = ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
-//                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
-//                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
-//                return resolution1 < resolution2
-//            })!
-//            configuration.videoFormat = maxResolutionFormat
-//        }
-        //        configuration.detectionObjects = obj
+        if #available(iOS 16.0, *) {
+            print("recommendedVideoFormatForHighResolutionFrameCapturing")
+            configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.recommendedVideoFormatFor4KResolution ?? ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
+                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
+                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
+                return resolution1 < resolution2
+            })!
+        } else {
+            print("Alternative high resolution method")
+            let maxResolutionFormat = ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
+                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
+                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
+                return resolution1 < resolution2
+            })!
+            configuration.videoFormat = maxResolutionFormat
+        }
+//                configuration.detectionObjects = obj
         ReplateCameraView.arView.session.run(configuration)
         ReplateCameraView.arView.addCoaching()
         ReplateCameraView.sessionId = ReplateCameraView.arView.session.identifier
