@@ -53,7 +53,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var totalPhotosTaken: Int = 0
     static var photosFromDifferentAnglesTaken = 0
     static var INSTANCE: ReplateCameraView!
-    static var sphereRadius = Float(0.0025 * 1.5)
+    static var sphereRadius = Float(0.004)
     static var spheresRadius = Float(0.10)
     static var sphereAngle = Float(5)
     static var spheresHeight = Float(0.15)
@@ -61,7 +61,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var isPaused = false
     static var sessionId: UUID!
     static var focusModel: ModelEntity!
-    static var distanceBetweenCircles = Float(0.15)
+    static var distanceBetweenCircles = Float(0.10)
     
     
     
@@ -397,8 +397,8 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         ReplateCameraView.lowerSpheresSet = [Bool](repeating: false, count: 72)
         ReplateCameraView.totalPhotosTaken = 0
         ReplateCameraView.photosFromDifferentAnglesTaken = 0
-        ReplateCameraView.sphereRadius = Float(0.0025 * 2)
-        ReplateCameraView.spheresRadius = Float(0.15)
+        ReplateCameraView.sphereRadius = Float(0.004)
+        ReplateCameraView.spheresRadius = Float(0.1)
         ReplateCameraView.sphereAngle = Float(5)
         ReplateCameraView.spheresHeight = Float(0.15)
         ReplateCameraView.dragSpeed = CGFloat(7000)
@@ -406,9 +406,13 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     }
     
     static func generateImpactFeedback(strength: UIImpactFeedbackGenerator.FeedbackStyle) {
-        let impactFeedbackGenerator = UIImpactFeedbackGenerator(style: strength)
-        impactFeedbackGenerator.prepare()
-        impactFeedbackGenerator.impactOccurred()
+        do{
+            let impactFeedbackGenerator = UIImpactFeedbackGenerator(style: strength)
+            impactFeedbackGenerator.prepare()
+            impactFeedbackGenerator.impactOccurred()
+        }catch{
+            print("Error when sending feedback")
+        }
     }
     
 }
@@ -667,7 +671,7 @@ class ReplateCameraController: NSObject {
         if let mesh = mesh {
             let material = SimpleMaterial(color: .green, roughness: 1, isMetallic: false)
             mesh.model?.materials[0] = material
-            ReplateCameraView.generateImpactFeedback(strength: .medium)
+            ReplateCameraView.generateImpactFeedback(strength: .light)
         }
         
         callback?([])
