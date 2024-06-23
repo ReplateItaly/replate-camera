@@ -56,7 +56,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var sphereRadius = Float(0.0025 * 1.5)
     static var spheresRadius = Float(0.15)
     static var sphereAngle = Float(5)
-    static var spheresHeight = Float(0.15)
+    static var spheresHeight = Float(0.1)
     static var dragSpeed = CGFloat(7000)
     static var isPaused = false
     static var sessionId: UUID!
@@ -202,7 +202,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         }
         if (ReplateCameraView.model == nil && ReplateCameraView.anchorEntity == nil) {
             ReplateCameraView.anchorEntity = anchor
-            createSpheres(y: 0 + ReplateCameraView.spheresHeight)
+            createSpheres(y: ReplateCameraView.spheresHeight)
             createSpheres(y: ReplateCameraView.distanceBetweenCircles + ReplateCameraView.spheresHeight)
             createFocusSphere()
             
@@ -250,10 +250,9 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         let sphereMesh = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 1.5)
         let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.7), roughness: 1, isMetallic: false)])
         sphereEntity.position = SIMD3(x: 0, y: ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles / 2), z: 0)
-        sphereEntity.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), isMetallic: false)]
+        sphereEntity.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)]
         ReplateCameraView.focusModel = sphereEntity
         ReplateCameraView.anchorEntity.addChild(sphereEntity)
-        sphereEntity.setPosition(sphereEntity.position, relativeTo: nil)
     }
     
     func createSphere(position: SIMD3<Float>) -> ModelEntity {
@@ -401,7 +400,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         ReplateCameraView.sphereRadius = Float(0.0025 * 2)
         ReplateCameraView.spheresRadius = Float(0.15)
         ReplateCameraView.sphereAngle = Float(5)
-        ReplateCameraView.spheresHeight = Float(0.01)
+        ReplateCameraView.spheresHeight = Float(0.1)
         ReplateCameraView.dragSpeed = CGFloat(7000)
         ReplateCameraView.arView = nil
     }
@@ -616,6 +615,12 @@ class ReplateCameraController: NSObject {
     }
     
     func updateSpheres(deviceTargetInFocus: Int) -> Bool {
+        // When the user pinch the screen the sheres are created new, we have to make sure that all the spheres have
+        // been recreated before running the updateSpheres logic
+        if(ReplateCameraView.spheresModels.count < 144){
+            return false
+        }
+        
         guard let anchorNode = ReplateCameraView.anchorEntity else {
             return false
         }
@@ -660,7 +665,7 @@ class ReplateCameraController: NSObject {
         }
         
         if let mesh = mesh {
-            let material = SimpleMaterial(color: .green, isMetallic: false)
+            let material = SimpleMaterial(color: .green, roughness: 1, isMetallic: false)
             mesh.model?.materials[0] = material
             ReplateCameraView.generateImpactFeedback(strength: .medium)
         }
