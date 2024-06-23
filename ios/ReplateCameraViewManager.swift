@@ -54,9 +54,9 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var photosFromDifferentAnglesTaken = 0
     static var INSTANCE: ReplateCameraView!
     static var sphereRadius = Float(0.0025 * 1.5)
-    static var spheresRadius = Float(0.15)
+    static var spheresRadius = Float(0.10)
     static var sphereAngle = Float(5)
-    static var spheresHeight = Float(0.1)
+    static var spheresHeight = Float(0.15)
     static var dragSpeed = CGFloat(7000)
     static var isPaused = false
     static var sessionId: UUID!
@@ -400,7 +400,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         ReplateCameraView.sphereRadius = Float(0.0025 * 2)
         ReplateCameraView.spheresRadius = Float(0.15)
         ReplateCameraView.sphereAngle = Float(5)
-        ReplateCameraView.spheresHeight = Float(0.1)
+        ReplateCameraView.spheresHeight = Float(0.15)
         ReplateCameraView.dragSpeed = CGFloat(7000)
         ReplateCameraView.arView = nil
     }
