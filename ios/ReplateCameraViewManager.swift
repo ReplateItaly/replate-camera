@@ -552,7 +552,7 @@ class ReplateCameraController: NSObject {
             let distanceBetweenCircles = ReplateCameraView.distanceBetweenCircles
             let point1Y = anchorPosition.y + spheresHeight
             let point2Y = anchorPosition.y + distanceBetweenCircles + spheresHeight
-            let twoThirdsDistance = point1Y + (2 / 3) * (point2Y - point1Y)
+            let twoThirdsDistance = point1Y + (4 / 5) * (point2Y - point1Y)
             
             var deviceTargetInFocus = -1
             let angleThreshold: Float = 0.6
@@ -668,8 +668,6 @@ class ReplateCameraController: NSObject {
     }
     
     func updateSpheres(deviceTargetInFocus: Int, completion: @escaping (Bool) -> Void) {
-        // Ensure we're on the main thread
-        DispatchQueue.main.async {
             // Ensure the function handles a single completion call
             var completionCalled = false
             func callCompletion(_ result: Bool) {
@@ -764,16 +762,17 @@ class ReplateCameraController: NSObject {
                 }
             }
             
-            if let mesh = mesh {
-                let material = SimpleMaterial(color: .green, roughness: 1, isMetallic: false)
-                mesh.model?.materials[0] = material
-                ReplateCameraView.generateImpactFeedback(strength: .light)
+            DispatchQueue.main.async {
+                if let mesh = mesh {
+                    let material = SimpleMaterial(color: .green, roughness: 1, isMetallic: false)
+                    mesh.model?.materials[0] = material
+                    ReplateCameraView.generateImpactFeedback(strength: .light)
+                }
             }
             
             // Ensure callback execution doesn't interfere with array access
             callback?([])
             callCompletion(newAngle)
-        }
     }
     
     static func angleBetweenAnchorXAndCamera(anchor: AnchorEntity, cameraTransform: simd_float4x4) -> Float {
