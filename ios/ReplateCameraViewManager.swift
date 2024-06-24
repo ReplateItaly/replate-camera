@@ -519,7 +519,7 @@ class ReplateCameraController: NSObject {
     }
     
     @objc(takePhoto:resolver:rejecter:)
-    func takePhoto(_ unlimited: Bool = false, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) -> Void {
+    func takePhoto(_ unlimited: Bool = false, resolver: @escaping RCTPromiseResolveBlock, rejecter: @escaping RCTPromiseRejectBlock) -> Void {
         do{
             guard let anchorNode = ReplateCameraView.anchorEntity else {
                 rejecter("[ReplateCameraController]", "No anchor set yet", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
@@ -569,56 +569,58 @@ class ReplateCameraController: NSObject {
             
             print("Take photo")
             if deviceTargetInFocus != -1 {
-                let newAngle = updateSpheres(deviceTargetInFocus: deviceTargetInFocus)
-                if !unlimited && !newAngle {
-                    rejecter("[ReplateCameraController]", "Too many images and the last one's not from a new angle", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
-                    return
-                }
-                
-                if let image = ReplateCameraView.arView?.session.currentFrame?.capturedImage {
-                    let ciImage = CIImage(cvImageBuffer: image)
-                    guard let cgImage = ReplateCameraController.cgImage(from: ciImage) else {
-                        rejecter("[ReplateCameraController]", "Error converting CIImage to CGImage", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
+                updateSpheres(deviceTargetInFocus: deviceTargetInFocus) { newAngle in
+                    if !unlimited && !newAngle {
+                        rejecter("[ReplateCameraController]", "Too many images and the last one's not from a new angle", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
                         return
                     }
-                    let uiImage = UIImage(cgImage: cgImage)
-                    let finImage = uiImage.rotate(radians: .pi / 2) // Adjust radians as needed
                     
-                    //                guard let components = finImage.averageColor()?.getRGBComponents() else {
-                    //                    rejecter("[ReplateCameraController]", "Cannot get color components", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
-                    //                    return
-                    //                }
-                    //
-                    //                let averagePixelColor = (components.red + components.blue + components.green) / 3
-                    //                print("Average pixel color: \(averagePixelColor)")
-                    //                if averagePixelColor < 0.15 {
-//                  rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
-//                                return
-                    //                }
-                    
-                    if let lightEstimate = ReplateCameraView.arView.session.currentFrame?.lightEstimate {
-                        // Get ambient intensity
-                        let ambientIntensity = lightEstimate.ambientIntensity
-                        let ambientColorTemperature = lightEstimate.ambientColorTemperature
-                        if (ambientIntensity < 300){
-                            rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
+                    if let image = ReplateCameraView.arView?.session.currentFrame?.capturedImage {
+                        let ciImage = CIImage(cvImageBuffer: image)
+                        guard let cgImage = ReplateCameraController.cgImage(from: ciImage) else {
+                            rejecter("[ReplateCameraController]", "Error converting CIImage to CGImage", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
                             return
                         }
-                        // Print light estimate data
-                        print("Ambient Intensity: \(ambientIntensity)")
-                        print("Color Temperature: \(ambientColorTemperature)")
-                    }
-                    
-                    print("Saving photo")
-                    if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
-                        resolver(url.absoluteString)
-                        print("Saved photo")
-                        return
-                    } else {
-                        rejecter("[ReplateCameraController]", "Error saving photo", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
-                        return
+                        let uiImage = UIImage(cgImage: cgImage)
+                        let finImage = uiImage.rotate(radians: .pi / 2) // Adjust radians as needed
+                        
+                        //                guard let components = finImage.averageColor()?.getRGBComponents() else {
+                        //                    rejecter("[ReplateCameraController]", "Cannot get color components", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
+                        //                    return
+                        //                }
+                        //
+                        //                let averagePixelColor = (components.red + components.blue + components.green) / 3
+                        //                print("Average pixel color: \(averagePixelColor)")
+                        //                if averagePixelColor < 0.15 {
+                        //                  rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
+                        //                                return
+                        //                }
+                        
+                        if let lightEstimate = ReplateCameraView.arView.session.currentFrame?.lightEstimate {
+                            // Get ambient intensity
+                            let ambientIntensity = lightEstimate.ambientIntensity
+                            let ambientColorTemperature = lightEstimate.ambientColorTemperature
+                            if (ambientIntensity < 300){
+                                rejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
+                                return
+                            }
+                            // Print light estimate data
+                            print("Ambient Intensity: \(ambientIntensity)")
+                            print("Color Temperature: \(ambientColorTemperature)")
+                        }
+                        
+                        print("Saving photo")
+                        if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
+                            resolver(url.absoluteString)
+                            print("Saved photo")
+                            return
+                        } else {
+                            rejecter("[ReplateCameraController]", "Error saving photo", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
+                            return
+                        }
                     }
                 }
+                
             } else {
                 rejecter("[ReplateCameraController]", "Object not in focus", NSError(domain: "ReplateCameraController", code: 002, userInfo: nil))
                 return
@@ -670,31 +672,35 @@ class ReplateCameraController: NSObject {
         }
     }
     
-    func updateSpheres(deviceTargetInFocus: Int) -> Bool {
+    func updateSpheres(deviceTargetInFocus: Int, completion: @escaping (Bool) -> Void) {
         // Ensure we're on the main thread
-        DispatchQueue.main.sync {
+        DispatchQueue.main.async {
             // When the user pinches the screen, spheres are recreated,
             // we have to make sure all spheres have been recreated before proceeding
             if (ReplateCameraView.spheresModels.count < 144) {
                 print("[updateSpheres] Spheres not fully initialized. Count: \(ReplateCameraView.spheresModels.count)")
-                return false
+                completion(false)
+                return
             }
             
             guard let anchorNode = ReplateCameraView.anchorEntity else {
                 print("[updateSpheres] No anchor entity found.")
-                return false
+                completion(false)
+                return
             }
             
             // Get the camera's pose
             guard let frame = ReplateCameraView.arView.session.currentFrame else {
                 print("[updateSpheres] No current frame available.")
-                return false
+                completion(false)
+                return
             }
             
             let cameraTransform = frame.camera.transform
             
             // Calculate the angle between the camera and the anchor
-            let angleDegrees = ReplateCameraController.angleBetweenAnchorXAndCamera(anchor: anchorNode, cameraTransform: cameraTransform)
+            let angleDegrees = ReplateCameraController.angleBetweenAnchorXAndCamera(anchor: anchorNode,
+                                                                                    cameraTransform: cameraTransform)
             let sphereIndex = max(Int(round(angleDegrees / 5.0)), 0) % 72 // Ensure sphereIndex stays within 0-71 bounds
             
             var mesh: ModelEntity?
@@ -705,7 +711,8 @@ class ReplateCameraController: NSObject {
             if deviceTargetInFocus == 1 {
                 if sphereIndex >= ReplateCameraView.upperSpheresSet.count {
                     print("[updateSpheres] Sphere index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.upperSpheresSet.count)")
-                    return false
+                    completion(false)
+                    return
                 }
                 
                 if !ReplateCameraView.upperSpheresSet[sphereIndex] {
@@ -715,7 +722,8 @@ class ReplateCameraController: NSObject {
                     
                     if 72 + sphereIndex >= ReplateCameraView.spheresModels.count {
                         print("[updateSpheres] Upper spheresModels index out of range. Index: \(72 + sphereIndex), Count: \(ReplateCameraView.spheresModels.count)")
-                        return false
+                        completion(false)
+                        return
                     }
                     mesh = ReplateCameraView.spheresModels[72 + sphereIndex]
                     
@@ -727,7 +735,8 @@ class ReplateCameraController: NSObject {
             } else if deviceTargetInFocus == 0 {
                 if sphereIndex >= ReplateCameraView.lowerSpheresSet.count {
                     print("[updateSpheres] Lower sphere index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.lowerSpheresSet.count)")
-                    return false
+                    completion(false)
+                    return
                 }
                 
                 if !ReplateCameraView.lowerSpheresSet[sphereIndex] {
@@ -737,7 +746,8 @@ class ReplateCameraController: NSObject {
                     
                     if sphereIndex >= ReplateCameraView.spheresModels.count {
                         print("[updateSpheres] Lower spheresModels index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.spheresModels.count)")
-                        return false
+                        completion(false)
+                        return
                     }
                     mesh = ReplateCameraView.spheresModels[sphereIndex]
                     
@@ -755,12 +765,9 @@ class ReplateCameraController: NSObject {
             }
             
             // Ensure callback execution doesn't interfere with array access
-            guard let validCallback = callback else {
-                return newAngle
-            }
-            validCallback([])
+            callback?([])
             
-            return newAngle
+            completion(newAngle)
         }
     }
     
