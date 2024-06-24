@@ -619,18 +619,21 @@ class ReplateCameraController: NSObject {
     }
     
     func updateSpheres(deviceTargetInFocus: Int) -> Bool {
-        // When the user pinch the screen the sheres are created new, we have to make sure that all the spheres have
+        // When the user pinch the screen the spheres are created new, we have to make sure that all the spheres have
         // been recreated before running the updateSpheres logic
         if(ReplateCameraView.spheresModels.count < 144){
+            print("[updateSpheres] Spheres not fully initialized. Count: \(ReplateCameraView.spheresModels.count)")
             return false
         }
         
         guard let anchorNode = ReplateCameraView.anchorEntity else {
+            print("[updateSpheres] No anchor entity found.")
             return false
         }
         
         // Get the camera's pose
         guard let frame = ReplateCameraView.arView.session.currentFrame else {
+            print("[updateSpheres] No current frame available.")
             return false
         }
         
@@ -644,23 +647,46 @@ class ReplateCameraController: NSObject {
         var newAngle = false
         var callback: RCTResponseSenderBlock? = nil
         print("Sphere index \(sphereIndex) - Spheres length \(ReplateCameraView.spheresModels.count)")
+        
         if deviceTargetInFocus == 1 {
+            if sphereIndex >= ReplateCameraView.upperSpheresSet.count {
+                print("[updateSpheres] Sphere index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.upperSpheresSet.count)")
+                return false
+            }
+            
             if !ReplateCameraView.upperSpheresSet[sphereIndex] {
                 ReplateCameraView.upperSpheresSet[sphereIndex] = true
                 ReplateCameraView.photosFromDifferentAnglesTaken += 1
                 newAngle = true
+                
+                if 72 + sphereIndex >= ReplateCameraView.spheresModels.count {
+                    print("[updateSpheres] Upper spheresModels index out of range. Index: \(72 + sphereIndex), Count: \(ReplateCameraView.spheresModels.count)")
+                    return false
+                }
                 mesh = ReplateCameraView.spheresModels[72 + sphereIndex]
+                
                 if ReplateCameraView.upperSpheresSet.allSatisfy({ $0 }) {
                     callback = ReplateCameraController.completedUpperSpheresCallback
                     ReplateCameraController.completedUpperSpheresCallback = nil
                 }
             }
         } else if deviceTargetInFocus == 0 {
+            if sphereIndex >= ReplateCameraView.lowerSpheresSet.count {
+                print("[updateSpheres] Lower sphere index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.lowerSpheresSet.count)")
+                return false
+            }
+            
             if !ReplateCameraView.lowerSpheresSet[sphereIndex] {
                 ReplateCameraView.lowerSpheresSet[sphereIndex] = true
                 ReplateCameraView.photosFromDifferentAnglesTaken += 1
                 newAngle = true
+                
+                if sphereIndex >= ReplateCameraView.spheresModels.count {
+                    print("[updateSpheres] Lower spheresModels index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.spheresModels.count)")
+                    return false
+                }
                 mesh = ReplateCameraView.spheresModels[sphereIndex]
+                
                 if ReplateCameraView.lowerSpheresSet.allSatisfy({ $0 }) {
                     callback = ReplateCameraController.completedLowerSpheresCallback
                     ReplateCameraController.completedLowerSpheresCallback = nil
