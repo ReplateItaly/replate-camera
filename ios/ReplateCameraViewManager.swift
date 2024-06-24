@@ -140,37 +140,62 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         
         switch gestureRecognizer.state {
         case .changed:
-            // Calculate the scale based on the gesture recognizer's scale
-            let scale = Float(gestureRecognizer.scale)
-            
-            // Apply the scale to the anchor entity's transform
-            let transform = ReplateCameraView.anchorEntity.transform
-            
-            ReplateCameraView.spheresModels.forEach { entity in
-                ReplateCameraView.anchorEntity.removeChild(entity)
-            }
-            ReplateCameraView.anchorEntity.removeChild(ReplateCameraView.focusModel)
-            ReplateCameraView.spheresModels = []
-            ReplateCameraView.sphereRadius *= scale
-            ReplateCameraView.spheresRadius *= scale
-            ReplateCameraView.sphereAngle *= scale
-            createSpheres(y: ReplateCameraView.spheresHeight)
-            createSpheres(y: ReplateCameraView.distanceBetweenCircles + ReplateCameraView.spheresHeight)
-            createFocusSphere()
-            for i in 0...71 {
-                let material = SimpleMaterial(color: .green, roughness: 1, isMetallic: false)
-                if (ReplateCameraView.upperSpheresSet[i]) {
-                    let entity = ReplateCameraView.spheresModels[72 + i]
-                    entity.model?.materials[0] = material
-                }
-                if (ReplateCameraView.lowerSpheresSet[i]) {
-                    let entity = ReplateCameraView.spheresModels[i]
-                    entity.model?.materials[0] = material
+            // Ensure execution on the main thread
+            DispatchQueue.main.async {
+                // Calculate the scale based on the gesture recognizer's scale
+                let scale = Float(gestureRecognizer.scale)
+                
+                // Ensure anchor entity is not nil before proceeding
+                guard let anchorEntity = ReplateCameraView.anchorEntity else {
+                    print("[handlePinch] Anchor entity is nil.")
+                    return
                 }
                 
+                // Remove all child entities safely
+                ReplateCameraView.spheresModels.forEach { entity in
+                    anchorEntity.removeChild(entity)
+                }
+                if let focusModel = ReplateCameraView.focusModel {
+                    anchorEntity.removeChild(focusModel)
+                }
+                
+                // Clear spheres models array
+                ReplateCameraView.spheresModels = []
+                
+                // Update the scales
+                ReplateCameraView.sphereRadius *= scale
+                ReplateCameraView.spheresRadius *= scale
+                ReplateCameraView.sphereAngle *= scale
+                
+                // Recreate spheres and the focus sphere
+                self.createSpheres(y: ReplateCameraView.spheresHeight)
+                self.createSpheres(y: ReplateCameraView.distanceBetweenCircles + ReplateCameraView.spheresHeight)
+                self.createFocusSphere()
+                
+                // Update the material of the spheres based on their state
+                for i in 0..<72 {
+                    let material = SimpleMaterial(color: .green, roughness: 1, isMetallic: false)
+                    if ReplateCameraView.upperSpheresSet[i] {
+                        if 72 + i < ReplateCameraView.spheresModels.count {
+                            let entity = ReplateCameraView.spheresModels[72 + i]
+                            entity.model?.materials[0] = material
+                        } else {
+                            print("[handlePinch] Upper sphere index out of bounds: \(72 + i)")
+                        }
+                    }
+                    if ReplateCameraView.lowerSpheresSet[i] {
+                        if i < ReplateCameraView.spheresModels.count {
+                            let entity = ReplateCameraView.spheresModels[i]
+                            entity.model?.materials[0] = material
+                        } else {
+                            print("[handlePinch] Lower sphere index out of bounds: \(i)")
+                        }
+                    }
+                }
+                
+                // Reset the gesture recognizer's scale to 1 to avoid cumulative scaling
+                gestureRecognizer.scale = 1.0
             }
-            // Reset the gesture recognizer's scale to 1 to avoid cumulative scaling
-            gestureRecognizer.scale = 1.0
         default:
             break
         }
@@ -247,18 +272,45 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     }
     
     func createFocusSphere() {
-        let sphereMesh = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 1.5)
-        let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.7), roughness: 1, isMetallic: false)])
-        sphereEntity.position = SIMD3(x: 0, y: ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles / 2), z: 0)
-        sphereEntity.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)]
-        ReplateCameraView.focusModel = sphereEntity
-        ReplateCameraView.anchorEntity.addChild(sphereEntity)
+        DispatchQueue.main.async {
+            // Generate the sphere mesh
+            let sphereMesh = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 1.5)
+            
+            // Create the sphere entity with initial material
+            let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.7), roughness: 1, isMetallic: false)])
+            
+            // Set the position for the sphere entity
+            sphereEntity.position = SIMD3(x: 0, y: ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles / 2), z: 0)
+            
+            // Update the material of the sphere entity
+            sphereEntity.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)]
+            
+            // Set the focus model for the global state
+            ReplateCameraView.focusModel = sphereEntity
+            
+            // Safely add the sphere entity to the anchor entity
+            ReplateCameraView.anchorEntity?.addChild(sphereEntity)
+        }
     }
     
     func createSphere(position: SIMD3<Float>) -> ModelEntity {
+        // Ensure execution on the main thread
+        guard Thread.isMainThread else {
+            return DispatchQueue.main.sync {
+                return createSphere(position: position)
+            }
+        }
+        
+        // Generate sphere mesh safely
         let sphereMesh = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius)
+        
+        // Create sphere entity with the specified material
         let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(1), roughness: 1, isMetallic: false)])
+        
+        // Set the position for the sphere entity
         sphereEntity.position = position
+        
+        // Return the created sphere entity
         return sphereEntity
     }
     
@@ -619,90 +671,97 @@ class ReplateCameraController: NSObject {
     }
     
     func updateSpheres(deviceTargetInFocus: Int) -> Bool {
-        // When the user pinch the screen the spheres are created new, we have to make sure that all the spheres have
-        // been recreated before running the updateSpheres logic
-        if(ReplateCameraView.spheresModels.count < 144){
-            print("[updateSpheres] Spheres not fully initialized. Count: \(ReplateCameraView.spheresModels.count)")
-            return false
-        }
-        
-        guard let anchorNode = ReplateCameraView.anchorEntity else {
-            print("[updateSpheres] No anchor entity found.")
-            return false
-        }
-        
-        // Get the camera's pose
-        guard let frame = ReplateCameraView.arView.session.currentFrame else {
-            print("[updateSpheres] No current frame available.")
-            return false
-        }
-        
-        let cameraTransform = frame.camera.transform
-        
-        // Calculate the angle between the camera and the anchor
-        let angleDegrees = ReplateCameraController.angleBetweenAnchorXAndCamera(anchor: anchorNode, cameraTransform: cameraTransform)
-        let sphereIndex = max(Int(round(angleDegrees / 5.0)), 0) % 72 // Ensure sphereIndex stays within 0-71 bounds
-        
-        var mesh: ModelEntity?
-        var newAngle = false
-        var callback: RCTResponseSenderBlock? = nil
-        print("Sphere index \(sphereIndex) - Spheres length \(ReplateCameraView.spheresModels.count)")
-        
-        if deviceTargetInFocus == 1 {
-            if sphereIndex >= ReplateCameraView.upperSpheresSet.count {
-                print("[updateSpheres] Sphere index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.upperSpheresSet.count)")
+        // Ensure we're on the main thread
+        DispatchQueue.main.sync {
+            // When the user pinches the screen, spheres are recreated,
+            // we have to make sure all spheres have been recreated before proceeding
+            if (ReplateCameraView.spheresModels.count < 144) {
+                print("[updateSpheres] Spheres not fully initialized. Count: \(ReplateCameraView.spheresModels.count)")
                 return false
             }
             
-            if !ReplateCameraView.upperSpheresSet[sphereIndex] {
-                ReplateCameraView.upperSpheresSet[sphereIndex] = true
-                ReplateCameraView.photosFromDifferentAnglesTaken += 1
-                newAngle = true
-                
-                if 72 + sphereIndex >= ReplateCameraView.spheresModels.count {
-                    print("[updateSpheres] Upper spheresModels index out of range. Index: \(72 + sphereIndex), Count: \(ReplateCameraView.spheresModels.count)")
-                    return false
-                }
-                mesh = ReplateCameraView.spheresModels[72 + sphereIndex]
-                
-                if ReplateCameraView.upperSpheresSet.allSatisfy({ $0 }) {
-                    callback = ReplateCameraController.completedUpperSpheresCallback
-                    ReplateCameraController.completedUpperSpheresCallback = nil
-                }
-            }
-        } else if deviceTargetInFocus == 0 {
-            if sphereIndex >= ReplateCameraView.lowerSpheresSet.count {
-                print("[updateSpheres] Lower sphere index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.lowerSpheresSet.count)")
+            guard let anchorNode = ReplateCameraView.anchorEntity else {
+                print("[updateSpheres] No anchor entity found.")
                 return false
             }
             
-            if !ReplateCameraView.lowerSpheresSet[sphereIndex] {
-                ReplateCameraView.lowerSpheresSet[sphereIndex] = true
-                ReplateCameraView.photosFromDifferentAnglesTaken += 1
-                newAngle = true
-                
-                if sphereIndex >= ReplateCameraView.spheresModels.count {
-                    print("[updateSpheres] Lower spheresModels index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.spheresModels.count)")
+            // Get the camera's pose
+            guard let frame = ReplateCameraView.arView.session.currentFrame else {
+                print("[updateSpheres] No current frame available.")
+                return false
+            }
+            
+            let cameraTransform = frame.camera.transform
+            
+            // Calculate the angle between the camera and the anchor
+            let angleDegrees = ReplateCameraController.angleBetweenAnchorXAndCamera(anchor: anchorNode, cameraTransform: cameraTransform)
+            let sphereIndex = max(Int(round(angleDegrees / 5.0)), 0) % 72 // Ensure sphereIndex stays within 0-71 bounds
+            
+            var mesh: ModelEntity?
+            var newAngle = false
+            var callback: RCTResponseSenderBlock? = nil
+            print("Sphere index \(sphereIndex) - Spheres length \(ReplateCameraView.spheresModels.count)")
+            
+            if deviceTargetInFocus == 1 {
+                if sphereIndex >= ReplateCameraView.upperSpheresSet.count {
+                    print("[updateSpheres] Sphere index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.upperSpheresSet.count)")
                     return false
                 }
-                mesh = ReplateCameraView.spheresModels[sphereIndex]
                 
-                if ReplateCameraView.lowerSpheresSet.allSatisfy({ $0 }) {
-                    callback = ReplateCameraController.completedLowerSpheresCallback
-                    ReplateCameraController.completedLowerSpheresCallback = nil
+                if !ReplateCameraView.upperSpheresSet[sphereIndex] {
+                    ReplateCameraView.upperSpheresSet[sphereIndex] = true
+                    ReplateCameraView.photosFromDifferentAnglesTaken += 1
+                    newAngle = true
+                    
+                    if 72 + sphereIndex >= ReplateCameraView.spheresModels.count {
+                        print("[updateSpheres] Upper spheresModels index out of range. Index: \(72 + sphereIndex), Count: \(ReplateCameraView.spheresModels.count)")
+                        return false
+                    }
+                    mesh = ReplateCameraView.spheresModels[72 + sphereIndex]
+                    
+                    if ReplateCameraView.upperSpheresSet.allSatisfy({ $0 }) {
+                        callback = ReplateCameraController.completedUpperSpheresCallback
+                        ReplateCameraController.completedUpperSpheresCallback = nil
+                    }
+                }
+            } else if deviceTargetInFocus == 0 {
+                if sphereIndex >= ReplateCameraView.lowerSpheresSet.count {
+                    print("[updateSpheres] Lower sphere index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.lowerSpheresSet.count)")
+                    return false
+                }
+                
+                if !ReplateCameraView.lowerSpheresSet[sphereIndex] {
+                    ReplateCameraView.lowerSpheresSet[sphereIndex] = true
+                    ReplateCameraView.photosFromDifferentAnglesTaken += 1
+                    newAngle = true
+                    
+                    if sphereIndex >= ReplateCameraView.spheresModels.count {
+                        print("[updateSpheres] Lower spheresModels index out of range. Index: \(sphereIndex), Count: \(ReplateCameraView.spheresModels.count)")
+                        return false
+                    }
+                    mesh = ReplateCameraView.spheresModels[sphereIndex]
+                    
+                    if ReplateCameraView.lowerSpheresSet.allSatisfy({ $0 }) {
+                        callback = ReplateCameraController.completedLowerSpheresCallback
+                        ReplateCameraController.completedLowerSpheresCallback = nil
+                    }
                 }
             }
+            
+            if let mesh = mesh {
+                let material = SimpleMaterial(color: .green, roughness: 1, isMetallic: false)
+                mesh.model?.materials[0] = material
+                ReplateCameraView.generateImpactFeedback(strength: .light)
+            }
+            
+            // Ensure callback execution doesn't interfere with array access
+            guard let validCallback = callback else {
+                return newAngle
+            }
+            validCallback([])
+            
+            return newAngle
         }
-        
-        if let mesh = mesh {
-            let material = SimpleMaterial(color: .green, roughness: 1, isMetallic: false)
-            mesh.model?.materials[0] = material
-            ReplateCameraView.generateImpactFeedback(strength: .light)
-        }
-        
-        callback?([])
-        
-        return newAngle
     }
     
     static func angleBetweenAnchorXAndCamera(anchor: AnchorEntity, cameraTransform: simd_float4x4) -> Float {
