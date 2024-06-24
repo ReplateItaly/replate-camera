@@ -121,12 +121,13 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         guard let sceneView = gestureRecognizer.view as? ARView else {
             return
         }
+        guard let anchorEntity = ReplateCameraView.anchorEntity else {return}
         print("passed guard")
         if gestureRecognizer.state == .changed {
             print("triggered")
             let translation = gestureRecognizer.translation(in: sceneView)
             print(translation)
-            let initialPosition = ReplateCameraView.anchorEntity.position
+            let initialPosition = anchorEntity.position
             ReplateCameraView.anchorEntity.position = initialPosition + SIMD3(Float(translation.x / ReplateCameraView.dragSpeed), 0, Float(translation.y / ReplateCameraView.dragSpeed))
             
             gestureRecognizer.setTranslation(.zero, in: sceneView)
@@ -137,7 +138,6 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         guard let sceneView = gestureRecognizer.view as? ARView else {
             return
         }
-        
         switch gestureRecognizer.state {
         case .changed:
             // Ensure execution on the main thread
@@ -199,6 +199,39 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         default:
             break
         }
+    }
+    
+    func addDots(to planeAnchor: ARPlaneAnchor) {
+        print("Adding dots to plane anchor") // Debugging line
+        let center = planeAnchor.center
+        let extent = planeAnchor.extent
+        
+        var dotPositions: [SIMD3<Float>] = []
+        let dotSpacing: Float = 0.1 // Adjust the spacing of dots as needed
+        
+        for x in stride(from: -extent.x / 2, through: extent.x / 2, by: dotSpacing) {
+            for z in stride(from: -extent.z / 2, through: extent.z / 2, by: dotSpacing) {
+                let position = SIMD3<Float>(x + center.x, 0, z + center.z)
+                dotPositions.append(position)
+            }
+        }
+        
+        // Add the dots to the ARView
+        for position in dotPositions {
+            let dotAnchor = AnchorEntity(world: planeAnchor.transform)
+            let dot = createGreenDot(at: position)
+            dot.position.y = 0 // Ensure the dot position matches the plane's height
+            dotAnchor.addChild(dot)
+            ReplateCameraView.arView.scene.addAnchor(dotAnchor)
+        }
+    }
+    
+    func createGreenDot(at position: SIMD3<Float>) -> ModelEntity {
+        let sphereMesh = MeshResource.generateSphere(radius: 0.005)
+        let material = SimpleMaterial(color: .green, roughness: 0.5, isMetallic: false)
+        let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [material])
+        sphereEntity.position = position
+        return sphereEntity
     }
     
     
@@ -368,11 +401,11 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         //                                                           bundle: nil)
         //        else { fatalError("See no reference object") }
         //        print(obj)
-        //        configuration.planeDetection = ARWorldTrackingConfiguration.PlaneDetection.horizontal
-        //                ReplateCameraView.arView.debugOptions = [
-        //                    .showAnchorOrigins,
-        //                    .showAnchorGeometry
-        //                ]
+        configuration.planeDetection = ARWorldTrackingConfiguration.PlaneDetection.horizontal
+//                ReplateCameraView.arView.debugOptions = [
+//                    .showAnchorOrigins,
+//                    .showAnchorGeometry
+//                ]
         //        ReplateCameraView.arView.debugOptions = [.showStatistics]
         if #available(iOS 16.0, *) {
             print("recommendedVideoFormatForHighResolutionFrameCapturing")
@@ -416,6 +449,16 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         let b = CGFloat(Int(color) & 0x000000FF)
         
         return UIColor(red: r / 255.0, green: g / 255.0, blue: b / 255.0, alpha: 1)
+    }
+    
+    internal func session(_ session: ARSession, didAdd anchors: [ARAnchor]) {
+        print("Planes detected: \(anchors.count)") // Debugging line
+        for anchor in anchors {
+            if let planeAnchor = anchor as? ARPlaneAnchor {
+                print("Adding dots to plane")
+                addDots(to: planeAnchor)
+            }
+        }
     }
     
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
