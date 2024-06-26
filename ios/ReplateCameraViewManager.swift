@@ -207,7 +207,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         let extent = planeAnchor.extent
         
         var dotPositions: [SIMD3<Float>] = []
-        let dotSpacing: Float = 0.1 // Adjust the spacing of dots as needed
+        let dotSpacing: Float = 0.05 // Adjust the spacing of dots (smaller value for more dots)
         
         for x in stride(from: -extent.x / 2, through: extent.x / 2, by: dotSpacing) {
             for z in stride(from: -extent.z / 2, through: extent.z / 2, by: dotSpacing) {
@@ -219,19 +219,31 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         // Add the dots to the ARView
         for position in dotPositions {
             let dotAnchor = AnchorEntity(world: planeAnchor.transform)
-            let dot = createGreenDot(at: position)
+            let dot = createDot(at: position) // Assuming you're using the circle function
             dot.position.y = 0 // Ensure the dot position matches the plane's height
             dotAnchor.addChild(dot)
             ReplateCameraView.arView.scene.addAnchor(dotAnchor)
         }
     }
+
     
-    func createGreenDot(at position: SIMD3<Float>) -> ModelEntity {
-        let sphereMesh = MeshResource.generateSphere(radius: 0.005)
-        let material = SimpleMaterial(color: .green, roughness: 0.5, isMetallic: false)
-        let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [material])
-        sphereEntity.position = position
-        return sphereEntity
+    func createDot(at position: SIMD3<Float>) -> ModelEntity {
+        // Define the dimensions of the box
+        let width: Float = 0.005  // 1 cm width
+        let height: Float = 0.0001  // Very small height to make it almost flat
+        let depth: Float = width // 1 cm depth
+        let cornerRadius: Float = width/2.0  // Half of the width to make it look like a circle
+        
+        // Generate a box with rounded corners
+        let cylinderMesh = MeshResource.generateBox(size: [width, height, depth], cornerRadius: cornerRadius)
+        
+        // Create the material
+        let material = SimpleMaterial(color: .white, roughness: 1, isMetallic: false)
+        
+        // Create the entity
+        let circleEntity = ModelEntity(mesh: cylinderMesh, materials: [material])
+        circleEntity.position = position
+        return circleEntity
     }
     
     
@@ -473,6 +485,8 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         if (session.identifier == ReplateCameraView.sessionId) {
             ReplateCameraView.arView.session.pause()
             ReplateCameraView.isPaused = true
+            ReplateCameraView.arView.removeFromSuperview()
+            ReplateCameraView.arView = nil
         }
     }
     
@@ -595,19 +609,19 @@ class ReplateCameraController: NSObject {
             let distanceBetweenCircles = ReplateCameraView.distanceBetweenCircles
             let point1Y = anchorPosition.y + spheresHeight
             let point2Y = anchorPosition.y + distanceBetweenCircles + spheresHeight
-            let twoThirdsDistance = point1Y + (4 / 5) * (point2Y - point1Y)
-            
+            let twoThirdsDistance = spheresHeight + (distanceBetweenCircles/5) * 4
             var deviceTargetInFocus = -1
             let angleThreshold: Float = 0.6
-            
+            var relativeCameraTransform: simd_float4x4
             if let cameraTransform = ReplateCameraView.arView.session.currentFrame?.camera.transform {
+                relativeCameraTransform = ReplateCameraController.getTransformRelativeToAnchor(anchor: anchorNode, cameraTransform: cameraTransform)
                 let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
                 let deviceDirection = normalize(SIMD3<Float>(-cameraTransform.columns.2.x, -cameraTransform.columns.2.y, -cameraTransform.columns.2.z))
                 let directionToAnchor = normalize(anchorPosition - cameraPosition)
                 let angleToAnchor = acos(dot(deviceDirection, directionToAnchor))
                 
                 if angleToAnchor < angleThreshold {
-                    let cameraHeight = cameraPosition.y
+                    let cameraHeight = relativeCameraTransform.columns.3.y
                     if cameraHeight < twoThirdsDistance {
                         deviceTargetInFocus = 0
                         print("Is pointing at first point")
@@ -625,7 +639,7 @@ class ReplateCameraController: NSObject {
             }
             
             if deviceTargetInFocus != -1 {
-                updateSpheres(deviceTargetInFocus: deviceTargetInFocus) { result in
+                updateSpheres(deviceTargetInFocus: deviceTargetInFocus, cameraTransform: relativeCameraTransform) { result in
                     if !unlimited && !result {
                         safeRejecter("[ReplateCameraController]", "Too many images and the last one's not from a new angle", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
                         return
@@ -710,7 +724,7 @@ class ReplateCameraController: NSObject {
         }
     }
     
-    func updateSpheres(deviceTargetInFocus: Int, completion: @escaping (Bool) -> Void) {
+    func updateSpheres(deviceTargetInFocus: Int, cameraTransform: simd_float4x4, completion: @escaping (Bool) -> Void) {
             // Ensure the function handles a single completion call
             var completionCalled = false
             func callCompletion(_ result: Bool) {
@@ -742,9 +756,7 @@ class ReplateCameraController: NSObject {
                 callCompletion(false)
                 return
             }
-            
-            let cameraTransform = frame.camera.transform
-            
+                        
             // Calculate the angle between the camera and the anchor
             let angleDegrees = ReplateCameraController.angleBetweenAnchorXAndCamera(anchor: anchorNode,
                                                                                     cameraTransform: cameraTransform)
@@ -818,13 +830,18 @@ class ReplateCameraController: NSObject {
             callCompletion(newAngle)
     }
     
-    static func angleBetweenAnchorXAndCamera(anchor: AnchorEntity, cameraTransform: simd_float4x4) -> Float {
-        // Extract the position of the anchor and the camera from their transforms, ignoring the y-axis
-        let anchorPositionXZ = simd_float2(anchor.transform.translation.x, anchor.transform.translation.z)
+    static func getTransformRelativeToAnchor(anchor: AnchorEntity, cameraTransform: simd_float4x4) -> simd_float4x4{
         // Transform the camera position to the anchor's local space
         let anchorTransform = anchor.transformMatrix(relativeTo: nil)
         let relativePosition = anchorTransform.inverse * cameraTransform
-        let relativeCameraPositionXZ = simd_float2(relativePosition.columns.3.x, relativePosition.columns.3.z)
+        return relativePosition
+    }
+    
+    static func angleBetweenAnchorXAndCamera(anchor: AnchorEntity, cameraTransform: simd_float4x4) -> Float {
+        // Extract the position of the anchor and the camera from their transforms, ignoring the y-axis
+        let anchorTransform = anchor.transformMatrix(relativeTo: nil)
+        let anchorPositionXZ = simd_float2(anchor.transform.translation.x, anchor.transform.translation.z)
+        let relativeCameraPositionXZ = simd_float2(cameraTransform.columns.3.x, cameraTransform.columns.3.z)
         
         // Calculate the direction vector from the anchor to the camera in the XZ plane
         let directionXZ = relativeCameraPositionXZ - anchorPositionXZ
