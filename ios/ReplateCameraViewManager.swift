@@ -62,7 +62,8 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var sessionId: UUID!
     static var focusModel: ModelEntity!
     static var distanceBetweenCircles = Float(0.10)
-    
+    static var circleInFocus = 0 //0 for lower, 1 for upper
+    static var dotAnchors: [AnchorEntity] = []
     
     
     override init(frame: CGRect) {
@@ -223,7 +224,9 @@ class ReplateCameraView: UIView, ARSessionDelegate {
             dot.position.y = 0 // Ensure the dot position matches the plane's height
             dotAnchor.addChild(dot)
             ReplateCameraView.arView.scene.addAnchor(dotAnchor)
+            ReplateCameraView.dotAnchors.append(dotAnchor)
         }
+        
     }
 
     
@@ -271,6 +274,11 @@ class ReplateCameraView: UIView, ARSessionDelegate {
             ReplateCameraController.anchorSetCallback = nil
         }
         if (ReplateCameraView.model == nil && ReplateCameraView.anchorEntity == nil) {
+            for dot in ReplateCameraView.dotAnchors {
+                dot.removeFromParent()
+                ReplateCameraView.arView.scene.removeAnchor(dot)
+            }
+            ReplateCameraView.dotAnchors = []
             ReplateCameraView.anchorEntity = anchor
             createSpheres(y: ReplateCameraView.spheresHeight)
             createSpheres(y: ReplateCameraView.distanceBetweenCircles + ReplateCameraView.spheresHeight)
@@ -639,6 +647,31 @@ class ReplateCameraController: NSObject {
             }
             
             if deviceTargetInFocus != -1 {
+                
+                func setOpacityToCircle(circleId: Int, opacity: Float) {
+                    for i in 0..<72 {
+                        let offset = circleId == 0 ? 0 : 72
+                        let entity = ReplateCameraView.spheresModels[i+offset]
+                        let material = entity.model?.materials[0]
+                        if (material is SimpleMaterial && material != nil){
+                            DispatchQueue.main.async{
+                                let simpleMaterial = material! as? SimpleMaterial
+                                if #available(iOS 15.0, *) {
+                                    let newMaterial = SimpleMaterial(color:                                 simpleMaterial?.color.tint.withAlphaComponent(CGFloat(opacity)) ?? SimpleMaterial.Color.white.withAlphaComponent(CGFloat(opacity)), roughness: 1, isMetallic: false)
+                                    entity.model?.materials[0] = newMaterial
+                                } else {
+                                    // Fallback on earlier versions
+                                }
+                            }
+                        }
+                    }
+                }
+                if(deviceTargetInFocus != ReplateCameraView.circleInFocus){
+                    setOpacityToCircle(circleId: ReplateCameraView.circleInFocus, opacity: 0.5)
+                    setOpacityToCircle(circleId: deviceTargetInFocus, opacity: 1)
+                    ReplateCameraView.circleInFocus = deviceTargetInFocus
+                    ReplateCameraView.generateImpactFeedback(strength: .heavy)
+                }
                 updateSpheres(deviceTargetInFocus: deviceTargetInFocus, cameraTransform: relativeCameraTransform) { result in
                     if !unlimited && !result {
                         safeRejecter("[ReplateCameraController]", "Too many images and the last one's not from a new angle", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
