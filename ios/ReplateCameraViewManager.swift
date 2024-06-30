@@ -217,16 +217,17 @@ class ReplateCameraView: UIView, ARSessionDelegate {
             }
         }
         
-        // Add the dots to the ARView
-        for position in dotPositions {
-            let dotAnchor = AnchorEntity(world: planeAnchor.transform)
-            let dot = createDot(at: position) // Assuming you're using the circle function
-            dot.position.y = 0 // Ensure the dot position matches the plane's height
-            dotAnchor.addChild(dot)
-            ReplateCameraView.arView.scene.addAnchor(dotAnchor)
-            ReplateCameraView.dotAnchors.append(dotAnchor)
+        DispatchQueue.main.async {
+            // Add the dots to the ARView
+            for position in dotPositions {
+                let dotAnchor = AnchorEntity(world: planeAnchor.transform)
+                let dot = self.createDot(at: position) // Assuming you're using the circle function
+                dot.position.y = 0 // Ensure the dot position matches the plane's height
+                dotAnchor.addChild(dot)
+                ReplateCameraView.arView.scene.addAnchor(dotAnchor)
+                ReplateCameraView.dotAnchors.append(dotAnchor)
+            }
         }
-        
     }
 
     
@@ -274,11 +275,13 @@ class ReplateCameraView: UIView, ARSessionDelegate {
             ReplateCameraController.anchorSetCallback = nil
         }
         if (ReplateCameraView.model == nil && ReplateCameraView.anchorEntity == nil) {
-            for dot in ReplateCameraView.dotAnchors {
-                dot.removeFromParent()
-                ReplateCameraView.arView.scene.removeAnchor(dot)
+            DispatchQueue.main.async{
+                for dot in ReplateCameraView.dotAnchors {
+                    dot.removeFromParent()
+                    ReplateCameraView.arView.scene.removeAnchor(dot)
+                }
+                ReplateCameraView.dotAnchors = []
             }
-            ReplateCameraView.dotAnchors = []
             ReplateCameraView.anchorEntity = anchor
             createSpheres(y: ReplateCameraView.spheresHeight)
             createSpheres(y: ReplateCameraView.distanceBetweenCircles + ReplateCameraView.spheresHeight)
@@ -476,7 +479,9 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         for anchor in anchors {
             if let planeAnchor = anchor as? ARPlaneAnchor {
                 print("Adding dots to plane")
-                addDots(to: planeAnchor)
+                if (ReplateCameraView.spheresModels.isEmpty) {
+                    addDots(to: planeAnchor)
+                }
             }
         }
     }
@@ -649,12 +654,12 @@ class ReplateCameraController: NSObject {
             if deviceTargetInFocus != -1 {
                 
                 func setOpacityToCircle(circleId: Int, opacity: Float) {
-                    for i in 0..<72 {
-                        let offset = circleId == 0 ? 0 : 72
-                        let entity = ReplateCameraView.spheresModels[i+offset]
-                        let material = entity.model?.materials[0]
-                        if (material is SimpleMaterial && material != nil){
-                            DispatchQueue.main.async{
+                    DispatchQueue.main.async{
+                        for i in 0..<72 {
+                            let offset = circleId == 0 ? 0 : 72
+                            let entity = ReplateCameraView.spheresModels[i+offset]
+                            let material = entity.model?.materials[0]
+                            if (material is SimpleMaterial && material != nil){
                                 let simpleMaterial = material! as? SimpleMaterial
                                 if #available(iOS 15.0, *) {
                                     let newMaterial = SimpleMaterial(color:                                 simpleMaterial?.color.tint.withAlphaComponent(CGFloat(opacity)) ?? SimpleMaterial.Color.white.withAlphaComponent(CGFloat(opacity)), roughness: 1, isMetallic: false)
