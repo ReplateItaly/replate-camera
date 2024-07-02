@@ -612,7 +612,7 @@ class ReplateCameraController: NSObject {
         
         do {
             guard let anchorNode = ReplateCameraView.anchorEntity else {
-                safeRejecter("[ReplateCameraController]", "No anchor set yet", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
+                safeRejecter("001", "[ReplateCameraController] No anchor set yet", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
                 return
             }
             
@@ -647,7 +647,7 @@ class ReplateCameraController: NSObject {
                 }
             } else {
                 print("Camera transform data not available")
-                safeRejecter("[ReplateCameraController]", "Camera transform data not available", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
+                safeRejecter("002", "[ReplateCameraController] Camera transform data not available", NSError(domain: "ReplateCameraController", code: 002, userInfo: nil))
                 return
             }
             
@@ -679,14 +679,14 @@ class ReplateCameraController: NSObject {
                 }
                 updateSpheres(deviceTargetInFocus: deviceTargetInFocus, cameraTransform: relativeCameraTransform) { result in
                     if !unlimited && !result {
-                        safeRejecter("[ReplateCameraController]", "Too many images and the last one's not from a new angle", NSError(domain: "ReplateCameraController", code: 001, userInfo: nil))
+                        safeRejecter("003", "[ReplateCameraController] Too many images and the last one's not from a new angle", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
                         return
                     }
                     
                     if let image = ReplateCameraView.arView?.session.currentFrame?.capturedImage {
                         let ciImage = CIImage(cvImageBuffer: image)
                         guard let cgImage = ReplateCameraController.cgImage(from: ciImage) else {
-                            safeRejecter("[ReplateCameraController]", "Error converting CIImage to CGImage", NSError(domain: "ReplateCameraController", code: 002, userInfo: nil))
+                            safeRejecter("004", "[ReplateCameraController] Error converting CIImage to CGImage", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
                             return
                         }
                         
@@ -698,7 +698,7 @@ class ReplateCameraController: NSObject {
                             let ambientColorTemperature = lightEstimate.ambientColorTemperature
                             
                             if ambientIntensity < 300 {
-                                safeRejecter("[ReplateCameraController]", "Image too dark", NSError(domain: "ReplateCameraController", code: 003, userInfo: nil))
+                                safeRejecter("005", "[ReplateCameraController] Image too dark", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
                                 return
                             }
                             
@@ -709,12 +709,12 @@ class ReplateCameraController: NSObject {
                         if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
                             safeResolver(url.absoluteString)
                         } else {
-                            safeRejecter("[ReplateCameraController]", "Error saving photo", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
+                            safeRejecter("006", "[ReplateCameraController] Error saving photo", NSError(domain: "ReplateCameraController", code: 006, userInfo: nil))
                         }
                     }
                 }
             } else {
-                safeRejecter("[ReplateCameraController]", "Object not in focus", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
+                safeRejecter("007", "[ReplateCameraController] Object not in focus", NSError(domain: "ReplateCameraController", code: 007, userInfo: nil))
             }
         } catch {
             print("Unexpected error occurred")
