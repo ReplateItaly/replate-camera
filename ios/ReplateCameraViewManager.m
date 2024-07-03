@@ -7,14 +7,13 @@
 // RCT_EXPORT_VIEW_PROPERTY(rect, NSDictionary)
 RCT_EXPORT_VIEW_PROPERTY(color, NSString)
 
-
 @end
 
 
 @interface RCT_EXTERN_MODULE(ReplateCameraController, NSObject)
 
 RCT_EXTERN_METHOD(takePhoto:(BOOL*)unlimited
-                 resolver:(RCTPromiseResolveBlock)resolver 
+                 resolver:(RCTPromiseResolveBlock)resolver
                  rejecter:(RCTPromiseRejectBlock)rejecter)
 
 RCT_EXTERN_METHOD(getPhotosCount:(RCTPromiseResolveBlock*)resolve
@@ -35,6 +34,8 @@ RCT_EXTERN_METHOD(registerCompletedUpperSpheresCallback:(RCTResponseSenderBlock)
 RCT_EXTERN_METHOD(registerCompletedLowerSpheresCallback:(RCTResponseSenderBlock)callback)
 
 RCT_EXTERN_METHOD(registerOpenedTutorialCallback:(RCTResponseSenderBlock)callback)
+
+RCT_EXTERN_METHOD(reset)
 
 + (BOOL)requiresMainQueueSetup
 {
