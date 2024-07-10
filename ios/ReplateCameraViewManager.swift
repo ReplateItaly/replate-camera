@@ -392,9 +392,11 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         reset()
         let width = self.frame.width
         let height = self.frame.height
-        ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
-        ReplateCameraView.arView.backgroundColor = hexStringToUIColor(hexColor: "#32a852")
-        addSubview(ReplateCameraView.arView)
+        if(ReplateCameraView.arView == nil){
+            ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
+            ReplateCameraView.arView.backgroundColor = hexStringToUIColor(hexColor: "#32a852")
+            addSubview(ReplateCameraView.arView)
+        }
         ReplateCameraView.arView.session.delegate = self
         let configuration = ARWorldTrackingConfiguration()
         configuration.isLightEstimationEnabled = true
@@ -524,7 +526,6 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         ReplateCameraView.sphereAngle = Float(5)
         ReplateCameraView.spheresHeight = Float(0.15)
         ReplateCameraView.dragSpeed = CGFloat(7000)
-        ReplateCameraView.arView = nil
         
     }
     
