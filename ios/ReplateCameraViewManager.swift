@@ -53,13 +53,13 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var photosFromDifferentAnglesTaken = 0
     static var INSTANCE: ReplateCameraView!
     static var sphereRadius = Float(0.004)
-    static var spheresRadius = Float(0.10)
+    static var spheresRadius = Float(0.13)
     static var sphereAngle = Float(5)
     static var spheresHeight = Float(0.15)
     static var dragSpeed = CGFloat(7000)
     static var isPaused = false
     static var sessionId: UUID!
-    static var focusModel: ModelEntity!
+    static var focusModel: Entity!
     static var distanceBetweenCircles = Float(0.10)
     static var circleInFocus = 0 //0 for lower, 1 for upper
     static var dotAnchors: [AnchorEntity] = []
@@ -121,14 +121,27 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         guard let sceneView = gestureRecognizer.view as? ARView else {
             return
         }
-        guard let anchorEntity = ReplateCameraView.anchorEntity else {return}
+        guard let anchorEntity = ReplateCameraView.anchorEntity else { return }
+        let cameraTransform = sceneView.cameraTransform
         print("passed guard")
+        
         if gestureRecognizer.state == .changed {
             print("triggered")
             let translation = gestureRecognizer.translation(in: sceneView)
             print(translation)
+            // Calculate the angle between the anchor's x-axis and the camera's x-axis
+            let angle = ReplateCameraController.angleBetweenAnchorXAndCamera(anchor: anchorEntity, cameraTransform: cameraTransform.matrix)
+            let angleRadians = angle * (.pi / 180.0)
+            
+            // Rotate the translation vector by the calculated angle
+            let rotatedTranslation = SIMD3<Float>(
+                x: Float(translation.x) * cos(angleRadians) - Float(translation.y) * sin(angleRadians),
+                y: 0,
+                z: Float(translation.x) * sin(angleRadians) + Float(translation.y) * cos(angleRadians)
+            )
+            
             let initialPosition = anchorEntity.position
-            ReplateCameraView.anchorEntity.position = initialPosition + SIMD3(Float(translation.x / ReplateCameraView.dragSpeed), 0, Float(translation.y / ReplateCameraView.dragSpeed))
+            ReplateCameraView.anchorEntity.position = initialPosition + rotatedTranslation / Float(ReplateCameraView.dragSpeed)
             
             gestureRecognizer.setTranslation(.zero, in: sceneView)
         }
@@ -238,7 +251,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         let cornerRadius: Float = width/2.0  // Half of the width to make it look like a circle
         
         // Generate a box with rounded corners
-        let cylinderMesh = MeshResource.generateBox(size: [width, height, depth], cornerRadius: cornerRadius)
+        let cylinderMesh = MeshResource.generateBox(size: [width, height, depth], cornerRadius: 1)
         
         // Create the material
         let material = SimpleMaterial(color: .white, roughness: 1, isMetallic: false)
@@ -328,23 +341,47 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     
     func createFocusSphere() {
         DispatchQueue.main.async {
-            // Generate the sphere mesh
-            let sphereMesh = MeshResource.generateSphere(radius: ReplateCameraView.sphereRadius * 1.5)
+            let sphereRadius = ReplateCameraView.sphereRadius * 1.5
             
-            // Create the sphere entity with initial material
-            let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.7), roughness: 1, isMetallic: false)])
+            // Generate the first sphere mesh
+            let sphereMesh1 = MeshResource.generateSphere(radius: sphereRadius)
             
-            // Set the position for the sphere entity
-            sphereEntity.position = SIMD3(x: 0, y: ReplateCameraView.spheresHeight + (ReplateCameraView.distanceBetweenCircles / 2), z: 0)
+            // Create the first sphere entity with initial material
+            let sphereEntity1 = ModelEntity(mesh: sphereMesh1, materials: [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)])
             
-            // Update the material of the sphere entity
-            sphereEntity.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)]
+            // Set the position for the first sphere entity
+            sphereEntity1.position = SIMD3(x: 0, y: ReplateCameraView.spheresHeight, z: 0)
+            
+            // Generate the second sphere mesh
+            let sphereMesh2 = MeshResource.generateSphere(radius: sphereRadius)
+            
+            // Create the second sphere entity with initial material
+            let sphereEntity2 = ModelEntity(mesh: sphereMesh2, materials: [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)])
+            
+            // Set the position for the second sphere entity
+            sphereEntity2.position = SIMD3(x: 0, y: ReplateCameraView.spheresHeight + ReplateCameraView.distanceBetweenCircles, z: 0)
+            
+            
+            // Update the material of the sphere entities
+            sphereEntity1.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)]
+            sphereEntity2.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)]
+            
+            let baseOverlayMesh = MeshResource.generateBox(size: [ReplateCameraView.spheresRadius * 2, 0.01, ReplateCameraView.spheresRadius * 2], cornerRadius: 1)
+            let baseOverlayEntity = ModelEntity(mesh: baseOverlayMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.5), roughness: 1, isMetallic: false)])
+            
+            baseOverlayEntity.position = SIMD3(x: 0, y: 0.01, z: 0)
+            
+            // Create a parent entity to hold both spheres
+            let parentEntity = Entity()
+            parentEntity.addChild(sphereEntity1)
+            parentEntity.addChild(sphereEntity2)
+            parentEntity.addChild(baseOverlayEntity)
             
             // Set the focus model for the global state
-            ReplateCameraView.focusModel = sphereEntity
+            ReplateCameraView.focusModel = parentEntity
             
-            // Safely add the sphere entity to the anchor entity
-            ReplateCameraView.anchorEntity?.addChild(sphereEntity)
+            // Safely add the parent entity to the anchor entity
+            ReplateCameraView.anchorEntity?.addChild(parentEntity)
         }
     }
     
@@ -480,7 +517,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         for anchor in anchors {
             if let planeAnchor = anchor as? ARPlaneAnchor {
                 print("Adding dots to plane")
-                if (ReplateCameraView.spheresModels.isEmpty) {
+                if (ReplateCameraView.spheresModels.isEmpty && ReplateCameraView.dotAnchors.isEmpty) {
                     addDots(to: planeAnchor)
                 }
             }
@@ -629,7 +666,7 @@ class ReplateCameraController: NSObject {
             let distanceBetweenCircles = ReplateCameraView.distanceBetweenCircles
             let point1Y = anchorPosition.y + spheresHeight
             let point2Y = anchorPosition.y + distanceBetweenCircles + spheresHeight
-            let twoThirdsDistance = spheresHeight + (distanceBetweenCircles/5) * 4
+            let twoThirdsDistance = spheresHeight + distanceBetweenCircles + distanceBetweenCircles/5
             var deviceTargetInFocus = -1
             let angleThreshold: Float = 0.6
             var relativeCameraTransform: simd_float4x4
