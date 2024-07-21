@@ -122,26 +122,32 @@ class ReplateCameraView: UIView, ARSessionDelegate {
             return
         }
         guard let anchorEntity = ReplateCameraView.anchorEntity else { return }
-        let cameraTransform = sceneView.cameraTransform
+        let cameraTransform = sceneView.cameraTransform.matrix // Get the 4x4 matrix
         print("passed guard")
         
         if gestureRecognizer.state == .changed {
             print("triggered")
             let translation = gestureRecognizer.translation(in: sceneView)
             print(translation)
-            // Calculate the angle between the anchor's x-axis and the camera's x-axis
-            let angle = ReplateCameraController.angleBetweenAnchorXAndCamera(anchor: anchorEntity, cameraTransform: cameraTransform.matrix)
-            let angleRadians = angle * (.pi / 180.0)
             
-            // Rotate the translation vector by the calculated angle
-            let rotatedTranslation = SIMD3<Float>(
-                x: Float(translation.x) * cos(angleRadians) - Float(translation.y) * sin(angleRadians),
-                y: 0,
-                z: Float(translation.x) * sin(angleRadians) + Float(translation.y) * cos(angleRadians)
+            // Extract forward and right vectors from the camera transform matrix
+            let forward = SIMD3<Float>(-cameraTransform.columns.2.x, 0, -cameraTransform.columns.2.z) // Assuming Y is up
+            let right = SIMD3<Float>(cameraTransform.columns.0.x, 0, cameraTransform.columns.0.z) // Assuming Y is up
+            
+            // Normalize the vectors
+            let forwardNormalized = normalize(forward)
+            let rightNormalized = normalize(right)
+            
+            // Calculate the adjusted movement based on user input and camera orientation
+            // Invert the vertical translation (y-axis)
+            let adjustedMovement = SIMD3<Float>(
+                x: Float(translation.x) * rightNormalized.x + Float(translation.y) * forwardNormalized.x,
+                y: 0, // Assuming you want to keep the movement in the horizontal plane
+                z: -Float(translation.x) * rightNormalized.z - Float(translation.y) * forwardNormalized.z // Invert the z movement
             )
             
             let initialPosition = anchorEntity.position
-            ReplateCameraView.anchorEntity.position = initialPosition + rotatedTranslation / Float(ReplateCameraView.dragSpeed)
+            ReplateCameraView.anchorEntity.position = initialPosition + adjustedMovement / Float(ReplateCameraView.dragSpeed)
             
             gestureRecognizer.setTranslation(.zero, in: sceneView)
         }
@@ -262,6 +268,18 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         return circleEntity
     }
     
+    private func loadModel(named name: String) -> ModelEntity {
+        do{
+            return try ModelEntity.loadModel(named: name)
+        }catch{
+            print("Cannot load model \(name)")
+            let baseOverlayMesh = MeshResource.generateBox(size: [ReplateCameraView.spheresRadius * 2, 0.01, ReplateCameraView.spheresRadius * 2], cornerRadius: 1)
+            let baseOverlayEntity = ModelEntity(mesh: baseOverlayMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.5), roughness: 1, isMetallic: false)])
+            
+            baseOverlayEntity.position = SIMD3(x: 0, y: 0.01, z: 0)
+            return baseOverlayEntity
+        }
+    }
     
     @objc private func viewTapped(_ recognizer: UITapGestureRecognizer) {
         print("VIEW TAPPED")
@@ -366,10 +384,11 @@ class ReplateCameraView: UIView, ARSessionDelegate {
             sphereEntity1.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)]
             sphereEntity2.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)]
             
-            let baseOverlayMesh = MeshResource.generateBox(size: [ReplateCameraView.spheresRadius * 2, 0.01, ReplateCameraView.spheresRadius * 2], cornerRadius: 1)
-            let baseOverlayEntity = ModelEntity(mesh: baseOverlayMesh, materials: [SimpleMaterial(color: .white.withAlphaComponent(0.5), roughness: 1, isMetallic: false)])
-            
-            baseOverlayEntity.position = SIMD3(x: 0, y: 0.01, z: 0)
+            let baseOverlayEntity = self.loadModel(named: "center.obj")
+            baseOverlayEntity.scale *= 10
+            baseOverlayEntity.model?.materials = [SimpleMaterial(color: .white.withAlphaComponent(0.3), roughness: 1, isMetallic: false),
+                                                  SimpleMaterial(color: .white.withAlphaComponent(0.7), roughness: 1, isMetallic: false),
+                                                  SimpleMaterial(color: .white.withAlphaComponent(0.5), roughness: 1, isMetallic: false)]
             
             // Create a parent entity to hold both spheres
             let parentEntity = Entity()
@@ -729,14 +748,35 @@ class ReplateCameraController: NSObject {
                     
                     if let image = ReplateCameraView.arView?.session.currentFrame?.capturedImage {
                         let ciImage = CIImage(cvImageBuffer: image)
-                        guard let cgImage = ReplateCameraController.cgImage(from: ciImage) else {
+                        
+                        // Define the target size for the reduced resolution
+                        let targetSize = CGSize(width: 1440, height: 810) // Change this to your desired resolution
+                        
+                        // Create a scaling filter to resize the image
+                        let scaleFilter = CIFilter(name: "CILanczosScaleTransform")!
+                        scaleFilter.setValue(ciImage, forKey: kCIInputImageKey)
+                        scaleFilter.setValue(targetSize.width / ciImage.extent.width, forKey: kCIInputScaleKey) // Scale factor
+                        scaleFilter.setValue(1.0, forKey: kCIInputAspectRatioKey) // Maintain aspect ratio
+                        
+                        // Get the output CIImage
+                        guard let scaledCIImage = scaleFilter.outputImage else {
+                            safeRejecter("005", "[ReplateCameraController] Error scaling CIImage", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
+                            return
+                        }
+                        
+                        // Convert the resized CIImage to CGImage
+                        guard let cgImage = ReplateCameraController.cgImage(from: scaledCIImage) else {
                             safeRejecter("004", "[ReplateCameraController] Error converting CIImage to CGImage", NSError(domain: "ReplateCameraController", code: 004, userInfo: nil))
                             return
                         }
                         
+                        // Create UIImage from CGImage
                         let uiImage = UIImage(cgImage: cgImage)
+                        
+                        // Rotate the image if needed
                         let finImage = uiImage.rotate(radians: .pi / 2) // Adjust radians as needed
                         
+                        // Check light estimate
                         if let lightEstimate = ReplateCameraView.arView.session.currentFrame?.lightEstimate {
                             let ambientIntensity = lightEstimate.ambientIntensity
                             let ambientColorTemperature = lightEstimate.ambientColorTemperature
@@ -750,6 +790,7 @@ class ReplateCameraController: NSObject {
                             print("Color Temperature: \(ambientColorTemperature)")
                         }
                         
+                        // Save the final image
                         if let url = ReplateCameraController.saveImageAsJPEG(finImage) {
                             safeResolver(url.absoluteString)
                         } else {
