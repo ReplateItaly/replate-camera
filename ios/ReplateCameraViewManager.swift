@@ -750,7 +750,7 @@ class ReplateCameraController: NSObject {
                         let ciImage = CIImage(cvImageBuffer: image)
                         
                         // Define the target size for the reduced resolution
-                        let targetSize = CGSize(width: 1440, height: 810) // Change this to your desired resolution
+                        let targetSize = CGSize(width: 1440, height: 1080) // Change this to your desired resolution
                         
                         // Create a scaling filter to resize the image
                         let scaleFilter = CIFilter(name: "CILanczosScaleTransform")!
@@ -816,7 +816,7 @@ class ReplateCameraController: NSObject {
     
     static func saveImageAsJPEG(_ image: UIImage) -> URL? {
         // Convert UIImage to Data with JPEG representation
-        guard let imageData = image.jpegData(compressionQuality: 1.0) else {
+        guard let imageData = image.jpegData(compressionQuality: 0.9) else {
             // Handle error if unable to convert to JPEG data
             print("Error converting UIImage to JPEG data")
             return nil
