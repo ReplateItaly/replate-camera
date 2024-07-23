@@ -113,7 +113,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         
         // Do something with width and height
         print("Width: \(width), Height: \(height)")
-        self.setupAR()
+        self.reset()
     }
     
     @objc private func handlePan(_ gestureRecognizer: UIPanGestureRecognizer) {
@@ -445,30 +445,10 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     
     func setupAR() {
         print("Setup AR")
-        reset()
         let width = self.frame.width
         let height = self.frame.height
-        if(ReplateCameraView.arView == nil){
-            ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
-            ReplateCameraView.arView.backgroundColor = hexStringToUIColor(hexColor: "#32a852")
-            addSubview(ReplateCameraView.arView)
-        }
-        ReplateCameraView.arView.session.delegate = self
         let configuration = ARWorldTrackingConfiguration()
         configuration.isLightEstimationEnabled = true
-        //        if #available(iOS 16.0, *) {
-        //            configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
-        //                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
-        //                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
-        //                return resolution1 < resolution2
-        //            })!
-        //        } else {
-        //            configuration.videoFormat = ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
-        //                let resolution1 = format1.imageResolution.width * format1.imageResolution.height
-        //                let resolution2 = format2.imageResolution.width * format2.imageResolution.height
-        //                return resolution1 < resolution2
-        //            })!
-        //        }
         
         ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableMotionBlur)
         ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableCameraGrain)
@@ -477,16 +457,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableFaceMesh)
         ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disableGroundingShadows)
         ReplateCameraView.arView.renderOptions.insert(ARView.RenderOptions.disablePersonOcclusion)
-        //        guard let obj = ARReferenceObject.referenceObjects(inGroupNamed: "AR Resource Group",
-        //                                                           bundle: nil)
-        //        else { fatalError("See no reference object") }
-        //        print(obj)
         configuration.planeDetection = ARWorldTrackingConfiguration.PlaneDetection.horizontal
-        //                ReplateCameraView.arView.debugOptions = [
-        //                    .showAnchorOrigins,
-        //                    .showAnchorGeometry
-        //                ]
-        //        ReplateCameraView.arView.debugOptions = [.showStatistics]
         if #available(iOS 16.0, *) {
             print("recommendedVideoFormatForHighResolutionFrameCapturing")
             configuration.videoFormat = ARWorldTrackingConfiguration.recommendedVideoFormatForHighResolutionFrameCapturing ?? ARWorldTrackingConfiguration.recommendedVideoFormatFor4KResolution ?? ARWorldTrackingConfiguration.supportedVideoFormats.max(by: { format1, format2 in
@@ -503,7 +474,6 @@ class ReplateCameraView: UIView, ARSessionDelegate {
             })!
             configuration.videoFormat = maxResolutionFormat
         }
-        //                configuration.detectionObjects = obj
         ReplateCameraView.arView.session.run(configuration)
         ReplateCameraView.arView.addCoaching()
         ReplateCameraView.sessionId = ReplateCameraView.arView.session.identifier
@@ -569,7 +539,13 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     }
     
     func reset() {
+        // Pause the existing AR session
         ReplateCameraView.arView?.session.pause()
+        
+        // Remove the existing ARView from the superview
+        ReplateCameraView.arView?.removeFromSuperview()
+        
+        // Reset the static properties
         ReplateCameraView.anchorEntity = nil
         ReplateCameraView.model = nil
         ReplateCameraView.spheresModels = []
@@ -583,6 +559,18 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         ReplateCameraView.spheresHeight = Float(0.15)
         ReplateCameraView.dragSpeed = CGFloat(7000)
         
+        // Create a new instance of ARView
+        let width = self.frame.width
+        let height = self.frame.height
+        ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
+        ReplateCameraView.arView.backgroundColor = hexStringToUIColor(hexColor: "#32a852")
+        
+        // Add the new ARView to the view hierarchy
+        addSubview(ReplateCameraView.arView)
+        
+        // Set the session delegate and run the session
+        ReplateCameraView.arView.session.delegate = self
+        setupAR() // Call setupAR to configure the new session
     }
     
     static func generateImpactFeedback(strength: UIImpactFeedbackGenerator.FeedbackStyle) {
@@ -648,7 +636,7 @@ class ReplateCameraController: NSObject {
     
     @objc
     func reset(){
-        ReplateCameraView.INSTANCE.setupAR()
+        ReplateCameraView.INSTANCE.reset()
     }
     
     @objc(takePhoto:resolver:rejecter:)
