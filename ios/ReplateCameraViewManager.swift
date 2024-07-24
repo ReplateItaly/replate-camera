@@ -106,14 +106,9 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     
     override func layoutSubviews() {
         super.layoutSubviews()
-        
-        // Now you can safely access the size
-        let width = self.frame.width
-        let height = self.frame.height
-        
-        // Do something with width and height
-        print("Width: \(width), Height: \(height)")
-        self.reset()
+        if(ReplateCameraView.arView == nil){
+            self.reset()
+        }
     }
     
     @objc private func handlePan(_ gestureRecognizer: UIPanGestureRecognizer) {
@@ -445,8 +440,6 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     
     func setupAR() {
         print("Setup AR")
-        let width = self.frame.width
-        let height = self.frame.height
         let configuration = ARWorldTrackingConfiguration()
         configuration.isLightEstimationEnabled = true
         
@@ -519,64 +512,67 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     }
     
     func sessionWasInterrupted(_ session: ARSession) {
-        // Handle session interruption (e.g., app goes to the background)
         
-        // Pause the AR session to save resources
-        if (session.identifier == ReplateCameraView.sessionId) {
-            ReplateCameraView.arView.session.pause()
-            ReplateCameraView.isPaused = true
-            ReplateCameraView.arView.removeFromSuperview()
-            ReplateCameraView.arView = nil
-        }
     }
     
     func sessionInterruptionEnded(_ session: ARSession) {
-        // Handle resuming session after interruption
-        if (session.identifier == ReplateCameraView.sessionId) {
-            ReplateCameraView.isPaused = false
-            setupAR()
-        }
+        ReplateCameraView.arView = nil
     }
     
     func reset() {
-        DispatchQueue.main.sync{
-            // Pause the existing AR session
-            ReplateCameraView.arView?.session.pause()
-            ReplateCameraView.arView?.session.delegate = nil
-            ReplateCameraView.arView?.scene.anchors.removeAll()
-            ReplateCameraView.arView?.window?.resignKey()
-            
-            // Remove the existing ARView from the superview
-            ReplateCameraView.arView?.removeFromSuperview()
-            
-            // Reset the static properties
-            ReplateCameraView.anchorEntity = nil
-            ReplateCameraView.model = nil
-            ReplateCameraView.spheresModels = []
-            ReplateCameraView.upperSpheresSet = [Bool](repeating: false, count: 72)
-            ReplateCameraView.lowerSpheresSet = [Bool](repeating: false, count: 72)
-            ReplateCameraView.totalPhotosTaken = 0
-            ReplateCameraView.photosFromDifferentAnglesTaken = 0
-            ReplateCameraView.sphereRadius = Float(0.004)
-            ReplateCameraView.spheresRadius = Float(0.13)
-            ReplateCameraView.sphereAngle = Float(5)
-            ReplateCameraView.spheresHeight = Float(0.10)
-            ReplateCameraView.dragSpeed = CGFloat(7000)
-            
-            // Create a new instance of ARView
-            let width = self.frame.width
-            let height = self.frame.height
-            ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
-            ReplateCameraView.arView.backgroundColor = self.hexStringToUIColor(hexColor: "#32a852")
-            
-            // Add the new ARView to the view hierarchy
-            self.addSubview(ReplateCameraView.arView)
-            
-            // Set the session delegate and run the session
-            ReplateCameraView.arView.session.delegate = self
-            self.setupAR() // Call setupAR to configure the new session
+        DispatchQueue.global().async {
+            if (!Thread.isMainThread) {
+                DispatchQueue.main.sync {
+                    print("PROOOOOVA1")
+                    // Pause the existing AR session
+                    ReplateCameraView.arView?.session.pause()
+                    ReplateCameraView.arView?.session.delegate = nil
+                    ReplateCameraView.arView?.scene.anchors.removeAll()
+                    
+                    // Perform UI updates and property resets on the main thread asynchronously
+                    // Remove the existing ARView from the superview
+                    ReplateCameraView.arView?.removeFromSuperview()
+                    
+                    // Resign key window
+                    ReplateCameraView.arView?.window?.resignKey()
+                    print("PROOOOOOVA2")
+                    
+                    
+                    // Reset the static properties
+                    ReplateCameraView.anchorEntity = nil
+                    ReplateCameraView.model = nil
+                    ReplateCameraView.spheresModels = []
+                    ReplateCameraView.upperSpheresSet = [Bool](repeating: false, count: 72)
+                    ReplateCameraView.lowerSpheresSet = [Bool](repeating: false, count: 72)
+                    ReplateCameraView.totalPhotosTaken = 0
+                    ReplateCameraView.photosFromDifferentAnglesTaken = 0
+                    ReplateCameraView.sphereRadius = Float(0.004)
+                    ReplateCameraView.spheresRadius = Float(0.13)
+                    ReplateCameraView.sphereAngle = Float(5)
+                    ReplateCameraView.spheresHeight = Float(0.10)
+                    ReplateCameraView.dragSpeed = CGFloat(7000)
+                    
+                    // Create a new instance of ARView
+                    let width = self.frame.width
+                    let height = self.frame.height
+                    
+                    ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
+                    ReplateCameraView.arView.backgroundColor = self.hexStringToUIColor(hexColor: "#32a852")
+                    print("PROOOOOOVA3")
+                    
+                    // Add the new ARView to the view hierarchy
+                    self.addSubview(ReplateCameraView.arView)
+                    
+                    
+                    // Set the session delegate and run the session
+                    ReplateCameraView.arView?.session.delegate = self
+                    print("PROOOOOOVA")
+                    self.setupAR()
+                }
+            }
         }
     }
+    
     
     static func generateImpactFeedback(strength: UIImpactFeedbackGenerator.FeedbackStyle) {
         do{
