@@ -55,7 +55,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var sphereRadius = Float(0.004)
     static var spheresRadius = Float(0.13)
     static var sphereAngle = Float(5)
-    static var spheresHeight = Float(0.11)
+    static var spheresHeight = Float(0.10)
     static var dragSpeed = CGFloat(7000)
     static var isPaused = false
     static var sessionId: UUID!
@@ -539,43 +539,45 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     }
     
     func reset() {
-        // Pause the existing AR session
-        ReplateCameraView.arView?.session.pause()
-        
-        // Remove the existing ARView from the superview
-        ReplateCameraView.arView?.removeFromSuperview()
-        
-        // Reset the static properties
-        ReplateCameraView.anchorEntity = nil
-        ReplateCameraView.model = nil
-        ReplateCameraView.spheresModels = []
-        ReplateCameraView.upperSpheresSet = [Bool](repeating: false, count: 72)
-        ReplateCameraView.lowerSpheresSet = [Bool](repeating: false, count: 72)
-        ReplateCameraView.totalPhotosTaken = 0
-        ReplateCameraView.photosFromDifferentAnglesTaken = 0
-        ReplateCameraView.sphereRadius = Float(0.004)
-        ReplateCameraView.spheresRadius = Float(0.1)
-        ReplateCameraView.sphereAngle = Float(5)
-        ReplateCameraView.spheresHeight = Float(0.15)
-        ReplateCameraView.dragSpeed = CGFloat(7000)
-        
-        // Create a new instance of ARView
-        let width = self.frame.width
-        let height = self.frame.height
-        ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
-        ReplateCameraView.arView.backgroundColor = hexStringToUIColor(hexColor: "#32a852")
-        
-        // Add the new ARView to the view hierarchy
-        addSubview(ReplateCameraView.arView)
-        
-        // Set the session delegate and run the session
-        ReplateCameraView.arView.session.delegate = self
-        setupAR() // Call setupAR to configure the new session
+        DispatchQueue.main.async{
+            // Pause the existing AR session
+            ReplateCameraView.arView?.session.pause()
+            
+            // Remove the existing ARView from the superview
+            ReplateCameraView.arView?.removeFromSuperview()
+            
+            // Reset the static properties
+            ReplateCameraView.anchorEntity = nil
+            ReplateCameraView.model = nil
+            ReplateCameraView.spheresModels = []
+            ReplateCameraView.upperSpheresSet = [Bool](repeating: false, count: 72)
+            ReplateCameraView.lowerSpheresSet = [Bool](repeating: false, count: 72)
+            ReplateCameraView.totalPhotosTaken = 0
+            ReplateCameraView.photosFromDifferentAnglesTaken = 0
+            ReplateCameraView.sphereRadius = Float(0.004)
+            ReplateCameraView.spheresRadius = Float(0.13)
+            ReplateCameraView.sphereAngle = Float(5)
+            ReplateCameraView.spheresHeight = Float(0.10)
+            ReplateCameraView.dragSpeed = CGFloat(7000)
+            
+            // Create a new instance of ARView
+            let width = self.frame.width
+            let height = self.frame.height
+            ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
+            ReplateCameraView.arView.backgroundColor = self.hexStringToUIColor(hexColor: "#32a852")
+            
+            // Add the new ARView to the view hierarchy
+            self.addSubview(ReplateCameraView.arView)
+            
+            // Set the session delegate and run the session
+            ReplateCameraView.arView.session.delegate = self
+            self.setupAR() // Call setupAR to configure the new session
+        }
     }
     
     static func generateImpactFeedback(strength: UIImpactFeedbackGenerator.FeedbackStyle) {
         do{
-            let impactFeedbackGenerator = UIImpactFeedbackGenerator(style: strength)
+            let impactFeedbackGenerator = try UIImpactFeedbackGenerator(style: strength)
             impactFeedbackGenerator.prepare()
             impactFeedbackGenerator.impactOccurred()
         }catch{
@@ -804,7 +806,7 @@ class ReplateCameraController: NSObject {
     
     static func saveImageAsJPEG(_ image: UIImage) -> URL? {
         // Convert UIImage to Data with JPEG representation
-        guard let imageData = image.jpegData(compressionQuality: 1) else {
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
             // Handle error if unable to convert to JPEG data
             print("Error converting UIImage to JPEG data")
             return nil
