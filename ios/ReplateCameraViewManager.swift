@@ -542,7 +542,10 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         DispatchQueue.main.async{
             // Pause the existing AR session
             ReplateCameraView.arView?.session.pause()
-            
+            ReplateCameraView.arView?.session.delegate = nil
+            ReplateCameraView.arView?.scene.anchors.removeAll()
+            ReplateCameraView.arView?.window?.resignKey()
+
             // Remove the existing ARView from the superview
             ReplateCameraView.arView?.removeFromSuperview()
             
