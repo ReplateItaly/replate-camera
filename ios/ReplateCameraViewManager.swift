@@ -55,7 +55,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var sphereRadius = Float(0.004)
     static var spheresRadius = Float(0.13)
     static var sphereAngle = Float(5)
-    static var spheresHeight = Float(0.15)
+    static var spheresHeight = Float(0.11)
     static var dragSpeed = CGFloat(7000)
     static var isPaused = false
     static var sessionId: UUID!
@@ -385,7 +385,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
             sphereEntity2.model?.materials = [SimpleMaterial(color: .green.withAlphaComponent(1), roughness: 1, isMetallic: false)]
             
             let baseOverlayEntity = self.loadModel(named: "center.obj")
-            baseOverlayEntity.scale *= 10
+            baseOverlayEntity.scale *= 12
             baseOverlayEntity.model?.materials = [SimpleMaterial(color: .white.withAlphaComponent(0.3), roughness: 1, isMetallic: false),
                                                   SimpleMaterial(color: .white.withAlphaComponent(0.7), roughness: 1, isMetallic: false),
                                                   SimpleMaterial(color: .white.withAlphaComponent(0.5), roughness: 1, isMetallic: false)]
@@ -804,7 +804,7 @@ class ReplateCameraController: NSObject {
     
     static func saveImageAsJPEG(_ image: UIImage) -> URL? {
         // Convert UIImage to Data with JPEG representation
-        guard let imageData = image.jpegData(compressionQuality: 0.9) else {
+        guard let imageData = image.jpegData(compressionQuality: 1) else {
             // Handle error if unable to convert to JPEG data
             print("Error converting UIImage to JPEG data")
             return nil
