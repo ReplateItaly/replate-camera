@@ -63,6 +63,10 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     static var distanceBetweenCircles = Float(0.10)
     static var circleInFocus = 0 //0 for lower, 1 for upper
     static var dotAnchors: [AnchorEntity] = []
+    static var width = CGFloat(0)
+    static var height = CGFloat(0)
+    private var isResetting = false  // Flag to prevent infinite loop
+    private let resetSemaphore = DispatchSemaphore(value: 1)  // Semaphore for synchronization
     
     
     override init(frame: CGRect) {
@@ -106,9 +110,8 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     
     override func layoutSubviews() {
         super.layoutSubviews()
-        if(ReplateCameraView.arView == nil){
-            self.reset()
-        }
+        ReplateCameraView.width = self.frame.width
+        ReplateCameraView.height = self.frame.height
     }
     
     @objc private func handlePan(_ gestureRecognizer: UIPanGestureRecognizer) {
@@ -230,7 +233,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
             }
         }
         
-        DispatchQueue.main.async {
+        DispatchQueue.main.asyncAfter(deadline: DispatchTime.now().advanced(by: DispatchTimeInterval.milliseconds(1000)), execute: {
             // Add the dots to the ARView
             for position in dotPositions {
                 let dotAnchor = AnchorEntity(world: planeAnchor.transform)
@@ -240,7 +243,7 @@ class ReplateCameraView: UIView, ARSessionDelegate {
                 ReplateCameraView.arView.scene.addAnchor(dotAnchor)
                 ReplateCameraView.dotAnchors.append(dotAnchor)
             }
-        }
+        })
     }
     
     
@@ -512,15 +515,23 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     }
     
     func sessionWasInterrupted(_ session: ARSession) {
-        
+        print("SESSION INTERRUPTED")
     }
     
     func sessionInterruptionEnded(_ session: ARSession) {
-        ReplateCameraView.arView = nil
+        print("SESSION RESUMED")
     }
     
     func reset() {
         DispatchQueue.global().async {
+            self.resetSemaphore.wait()  // Wait for the semaphore
+            if self.isResetting {
+                self.resetSemaphore.signal()  // Release the semaphore
+                return
+            }
+            self.isResetting = true
+            self.resetSemaphore.signal()  // Release the semaphore
+            
             if (!Thread.isMainThread) {
                 DispatchQueue.main.sync {
                     print("PROOOOOVA1")
@@ -537,7 +548,6 @@ class ReplateCameraView: UIView, ARSessionDelegate {
                     ReplateCameraView.arView?.window?.resignKey()
                     print("PROOOOOOVA2")
                     
-                    
                     // Reset the static properties
                     ReplateCameraView.anchorEntity = nil
                     ReplateCameraView.model = nil
@@ -552,22 +562,22 @@ class ReplateCameraView: UIView, ARSessionDelegate {
                     ReplateCameraView.spheresHeight = Float(0.10)
                     ReplateCameraView.dragSpeed = CGFloat(7000)
                     
-                    // Create a new instance of ARView
-                    let width = self.frame.width
-                    let height = self.frame.height
                     
-                    ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: width, height: height))
+                    ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: ReplateCameraView.width, height: ReplateCameraView.height))
                     ReplateCameraView.arView.backgroundColor = self.hexStringToUIColor(hexColor: "#32a852")
                     print("PROOOOOOVA3")
                     
                     // Add the new ARView to the view hierarchy
                     self.addSubview(ReplateCameraView.arView)
                     
-                    
                     // Set the session delegate and run the session
                     ReplateCameraView.arView?.session.delegate = self
                     print("PROOOOOOVA")
                     self.setupAR()
+                    
+                    self.resetSemaphore.wait()  // Wait for the semaphore
+                    self.isResetting = false
+                    self.resetSemaphore.signal()  // Release the semaphore
                 }
             }
         }
