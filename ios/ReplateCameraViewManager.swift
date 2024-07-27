@@ -815,7 +815,7 @@ class ReplateCameraController: NSObject {
 
     static func saveImageAsJPEG(_ image: UIImage) -> URL? {
         // Convert UIImage to Data with JPEG representation
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+        guard let imageData = image.jpegData(compressionQuality: 0.9) else {
             // Handle error if unable to convert to JPEG data
             print("Error converting UIImage to JPEG data")
             return nil
