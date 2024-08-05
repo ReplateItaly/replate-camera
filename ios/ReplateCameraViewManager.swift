@@ -782,7 +782,7 @@ class ReplateCameraController: NSObject {
                             let ambientIntensity = lightEstimate.ambientIntensity
                             let ambientColorTemperature = lightEstimate.ambientColorTemperature
 
-                            if ambientIntensity < 1000 {
+                            if ambientIntensity < 850 {
                                 safeRejecter("005", "[ReplateCameraController] Image too dark", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
                                 return
                             }
