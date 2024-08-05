@@ -2,6 +2,8 @@ import ARKit
 import RealityKit
 import UIKit
 import AVFoundation
+import ImageIO
+import MobileCoreServices
 
 @objc(ReplateCameraViewManager)
 class ReplateCameraViewManager: RCTViewManager {
@@ -780,7 +782,7 @@ class ReplateCameraController: NSObject {
                             let ambientIntensity = lightEstimate.ambientIntensity
                             let ambientColorTemperature = lightEstimate.ambientColorTemperature
 
-                            if ambientIntensity < 600 {
+                            if ambientIntensity < 1000 {
                                 safeRejecter("005", "[ReplateCameraController] Image too dark", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
                                 return
                             }
@@ -812,38 +814,75 @@ class ReplateCameraController: NSObject {
         return context.createCGImage(ciImage, from: ciImage.extent)
     }
 
+    static func getCameraTransformString(from session: ARSession) -> String? {
+        guard let currentFrame = session.currentFrame else {
+            print("No current frame available")
+            return nil
+        }
+        
+        // Extract the camera transform matrix
+        let cameraTransform = currentFrame.camera.transform
+        
+        // Serialize the transform matrix into a string
+        let transformString = """
+    \(cameraTransform.columns.0.x),\(cameraTransform.columns.0.y),\(cameraTransform.columns.0.z),\(cameraTransform.columns.0.w);
+    \(cameraTransform.columns.1.x),\(cameraTransform.columns.1.y),\(cameraTransform.columns.1.z),\(cameraTransform.columns.1.w);
+    \(cameraTransform.columns.2.x),\(cameraTransform.columns.2.y),\(cameraTransform.columns.2.z),\(cameraTransform.columns.2.w);
+    \(cameraTransform.columns.3.x),\(cameraTransform.columns.3.y),\(cameraTransform.columns.3.z),\(cameraTransform.columns.3.w)
+    """
+        
+        return transformString
+    }
 
     static func saveImageAsJPEG(_ image: UIImage) -> URL? {
+        let cameraTransform = getCameraTransformString(from: ReplateCameraView.arView.session)
         // Convert UIImage to Data with JPEG representation
-        guard let imageData = image.jpegData(compressionQuality: 0.9) else {
+        guard let imageData = image.jpegData(compressionQuality: 1) else {
             // Handle error if unable to convert to JPEG data
             print("Error converting UIImage to JPEG data")
             return nil
         }
-
-        //        UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
-
-        // Get the temporary directory URL
-        let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-
-        // Create a unique filename (you can use a UUID or any other method to generate a unique name)
-        let uniqueFilename = "image_\(Date().timeIntervalSince1970).jpg"
-
-        // Combine the temporary directory URL with the unique filename to get the full file URL
-        let fileURL = temporaryDirectoryURL.appendingPathComponent(uniqueFilename)
-
-        do {
-            // Write the JPEG data to the file
-            try imageData.write(to: fileURL, options: .atomic)
-
-            // Print the file URL for reference
-            print("Image saved at: \(fileURL.absoluteString)")
-            return fileURL
-        } catch {
-            // Handle the error if unable to write to the file
-            print("Error saving image: \(error.localizedDescription)")
+        
+        // Create a CGImageSource from the image data
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil) else {
+            print("Error creating image source")
             return nil
         }
+        
+        // Get the temporary directory URL
+        let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        let uniqueFilename = "image_\(Date().timeIntervalSince1970).jpg"
+        let fileURL = temporaryDirectoryURL.appendingPathComponent(uniqueFilename)
+        
+        // Create a mutable copy of the metadata
+        guard let imageProperties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else {
+            print("Error copying image properties")
+            return nil
+        }
+        var mutableMetadata = imageProperties
+        
+        // Add the camera transform to the metadata
+        mutableMetadata[kCGImagePropertyExifDictionary] = [
+            kCGImagePropertyExifUserComment: cameraTransform
+        ]
+        
+        // Create a CGImageDestination to write the image data with metadata
+        guard let destination = CGImageDestinationCreateWithURL(fileURL as CFURL, kUTTypeJPEG, 1, nil) else {
+            print("Error creating image destination")
+            return nil
+        }
+        
+        // Add the image from the source to the destination with the updated metadata
+        CGImageDestinationAddImageFromSource(destination, source, 0, mutableMetadata as CFDictionary)
+        
+        // Finalize the image destination
+        if !CGImageDestinationFinalize(destination) {
+            print("Error finalizing image destination")
+            return nil
+        }
+        
+        print("Image saved at: \(fileURL.absoluteString)")
+        return fileURL
     }
 
     func updateSpheres(deviceTargetInFocus: Int, cameraTransform: simd_float4x4, completion: @escaping (Bool) -> Void) {
@@ -961,7 +1000,7 @@ class ReplateCameraController: NSObject {
 
     static func angleBetweenAnchorXAndCamera(anchor: AnchorEntity, cameraTransform: simd_float4x4) -> Float {
         // Extract the position of the anchor and the camera from their transforms, ignoring the y-axis
-        let anchorTransform = anchor.transformMatrix(relativeTo: nil)
+        let anchorTransform = anchor.transform.matrix
         let anchorPositionXZ = simd_float2(anchor.transform.translation.x, anchor.transform.translation.z)
         let relativeCameraPositionXZ = simd_float2(cameraTransform.columns.3.x, cameraTransform.columns.3.z)
 
