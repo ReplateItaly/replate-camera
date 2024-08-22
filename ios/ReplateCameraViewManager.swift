@@ -782,7 +782,7 @@ class ReplateCameraController: NSObject {
                             let ambientIntensity = lightEstimate.ambientIntensity
                             let ambientColorTemperature = lightEstimate.ambientColorTemperature
 
-                            if ambientIntensity < 850 {
+                            if ambientIntensity < 650 {
                                 safeRejecter("005", "[ReplateCameraController] Image too dark", NSError(domain: "ReplateCameraController", code: 005, userInfo: nil))
                                 return
                             }
@@ -819,10 +819,10 @@ class ReplateCameraController: NSObject {
             print("No current frame available")
             return nil
         }
-        
+
         // Extract the camera transform matrix
         let cameraTransform = currentFrame.camera.transform
-        
+
         // Serialize the transform matrix into a string
         let transformString = """
     \(cameraTransform.columns.0.x),\(cameraTransform.columns.0.y),\(cameraTransform.columns.0.z),\(cameraTransform.columns.0.w);
@@ -830,7 +830,7 @@ class ReplateCameraController: NSObject {
     \(cameraTransform.columns.2.x),\(cameraTransform.columns.2.y),\(cameraTransform.columns.2.z),\(cameraTransform.columns.2.w);
     \(cameraTransform.columns.3.x),\(cameraTransform.columns.3.y),\(cameraTransform.columns.3.z),\(cameraTransform.columns.3.w)
     """
-        
+
         return transformString
     }
 
@@ -842,45 +842,45 @@ class ReplateCameraController: NSObject {
             print("Error converting UIImage to JPEG data")
             return nil
         }
-        
+
         // Create a CGImageSource from the image data
         guard let source = CGImageSourceCreateWithData(imageData as CFData, nil) else {
             print("Error creating image source")
             return nil
         }
-        
+
         // Get the temporary directory URL
         let temporaryDirectoryURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
         let uniqueFilename = "image_\(Date().timeIntervalSince1970).jpg"
         let fileURL = temporaryDirectoryURL.appendingPathComponent(uniqueFilename)
-        
+
         // Create a mutable copy of the metadata
         guard let imageProperties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else {
             print("Error copying image properties")
             return nil
         }
         var mutableMetadata = imageProperties
-        
+
         // Add the camera transform to the metadata
         mutableMetadata[kCGImagePropertyExifDictionary] = [
             kCGImagePropertyExifUserComment: cameraTransform
         ]
-        
+
         // Create a CGImageDestination to write the image data with metadata
         guard let destination = CGImageDestinationCreateWithURL(fileURL as CFURL, kUTTypeJPEG, 1, nil) else {
             print("Error creating image destination")
             return nil
         }
-        
+
         // Add the image from the source to the destination with the updated metadata
         CGImageDestinationAddImageFromSource(destination, source, 0, mutableMetadata as CFDictionary)
-        
+
         // Finalize the image destination
         if !CGImageDestinationFinalize(destination) {
             print("Error finalizing image destination")
             return nil
         }
-        
+
         print("Image saved at: \(fileURL.absoluteString)")
         return fileURL
     }
