@@ -536,7 +536,6 @@ class ReplateCameraView: UIView, ARSessionDelegate {
 
             if (!Thread.isMainThread) {
                 DispatchQueue.main.sync {
-                    print("PROOOOOVA1")
                     // Pause the existing AR session
                     ReplateCameraView.arView?.session.pause()
                     ReplateCameraView.arView?.session.delegate = nil
@@ -548,7 +547,6 @@ class ReplateCameraView: UIView, ARSessionDelegate {
 
                     // Resign key window
                     ReplateCameraView.arView?.window?.resignKey()
-                    print("PROOOOOOVA2")
 
                     // Reset the static properties
                     ReplateCameraView.anchorEntity = nil
@@ -566,15 +564,13 @@ class ReplateCameraView: UIView, ARSessionDelegate {
 
 
                     ReplateCameraView.arView = ARView(frame: CGRect(x: 0, y: 0, width: ReplateCameraView.width, height: ReplateCameraView.height))
-                    ReplateCameraView.arView.backgroundColor = self.hexStringToUIColor(hexColor: "#32a852")
-                    print("PROOOOOOVA3")
+                    ReplateCameraView.arView.backgroundColor = self.hexStringToUIColor(hexColor: "#000000")
 
                     // Add the new ARView to the view hierarchy
                     self.addSubview(ReplateCameraView.arView)
 
                     // Set the session delegate and run the session
                     ReplateCameraView.arView?.session.delegate = self
-                    print("PROOOOOOVA")
                     self.setupAR()
 
                     self.resetSemaphore.wait()  // Wait for the semaphore
