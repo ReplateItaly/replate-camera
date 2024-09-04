@@ -15,7 +15,7 @@ import { ReplateCameraView } from "replate-camera";
 
 // ...
 
-<ReplateCameraView color="tomato" />
+<ReplateCameraView />
 ```
 
 ## Contributing
