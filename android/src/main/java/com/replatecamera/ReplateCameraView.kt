@@ -22,6 +22,7 @@ import com.google.ar.sceneform.rendering.ShapeFactory
 import com.google.ar.sceneform.ux.ArFragment
 import com.google.ar.sceneform.ux.TransformableNode
 import com.google.ar.sceneform.rendering.Color
+import kotlin.math.sqrt
 
 @RequiresApi(Build.VERSION_CODES.N)
 class ReplateCameraView @JvmOverloads constructor(
@@ -32,11 +33,16 @@ class ReplateCameraView @JvmOverloads constructor(
   private var anchorNode: AnchorNode? = null
   private var spheres: MutableList<TransformableNode> = mutableListOf()
   private var gestureDetector: GestureDetector
+  private var scaleDetector: ScaleGestureDetector
+  private var sphereRadius = 0.004f
+  private var sphereCircleRadius =  0.13f
+  private var dragSpeed = 0.005f
 
   init {
     setupArFragment()
     requestCameraPermission()
     gestureDetector = GestureDetector(context, GestureListener())
+    scaleDetector = ScaleGestureDetector(context, ScaleListener())
   }
 
   @RequiresApi(Build.VERSION_CODES.N)
@@ -67,12 +73,10 @@ class ReplateCameraView @JvmOverloads constructor(
 
   @RequiresApi(Build.VERSION_CODES.N)
   private fun createSpheres() {
-    val radius = 0.13f
-    val sphereRadius = 0.004f
     for (i in 0 until 72) {
       val angle = Math.toRadians((i * 5).toDouble()).toFloat()
-      val x = radius * Math.cos(angle.toDouble()).toFloat()
-      val z = radius * Math.sin(angle.toDouble()).toFloat()
+      val x = sphereCircleRadius * Math.cos(angle.toDouble()).toFloat()
+      val z = sphereCircleRadius * Math.sin(angle.toDouble()).toFloat()
       createSphere(Vector3(x, 0.10f, z))
     }
   }
@@ -81,7 +85,7 @@ class ReplateCameraView @JvmOverloads constructor(
   private fun createSphere(position: Vector3) {
     MaterialFactory.makeOpaqueWithColor(context, Color(android.graphics.Color.WHITE))
       .thenAccept { material ->
-        val sphere = ShapeFactory.makeSphere(0.004f, position, material)
+        val sphere = ShapeFactory.makeSphere(sphereRadius, position, material)
         val node = TransformableNode(arFragment.transformationSystem)
         node.renderable = sphere
         node.setParent(anchorNode)
@@ -94,7 +98,7 @@ class ReplateCameraView @JvmOverloads constructor(
   }
 
   override fun onTouchEvent(event: MotionEvent): Boolean {
-    return gestureDetector.onTouchEvent(event)
+    return scaleDetector.onTouchEvent(event) || gestureDetector.onTouchEvent(event)
   }
 
   private inner class GestureListener : GestureDetector.SimpleOnGestureListener() {
@@ -108,7 +112,59 @@ class ReplateCameraView @JvmOverloads constructor(
       distanceX: Float,
       distanceY: Float
     ): Boolean {
+      // Assuming you have a reference to the AR scene view and the anchor entity
+      val sceneView = arFragment.arSceneView
+      val anchorEntity = anchorNode
+      anchorEntity?.let {
+        // Get the camera's transformation matrix
+        val cameraTransform = sceneView.scene.camera.worldPosition
+
+        if (e2.action == MotionEvent.ACTION_MOVE) {
+          // Calculate the translation
+          val translationX = -distanceX
+          val translationY = -distanceY
+
+          // Extract forward and right vectors from the camera transform matrix
+          val forward = Vector3(
+            -cameraTransform.x,
+            0f,
+            -cameraTransform.z
+          ) // Assuming Y is up
+          val right = Vector3(
+            cameraTransform.x,
+            0f,
+            cameraTransform.z
+          ) // Assuming Y is up
+
+          // Normalize the vectors
+          val forwardNormalized = normalize(forward)
+          val rightNormalized = normalize(right)
+
+          // Calculate the adjusted movement based on user input and camera orientation
+          val adjustedMovement = Vector3(
+            translationX * rightNormalized.x + translationY * forwardNormalized.x,
+            0f, // Assuming you want to keep the movement in the horizontal plane
+            -translationX * rightNormalized.z - translationY * forwardNormalized.z // Invert the z movement
+          )
+
+          // Update the position of the anchor entity
+          val initialPosition = anchorEntity.worldPosition
+          anchorEntity.worldPosition = Vector3.add(
+            initialPosition,
+            adjustedMovement.scaled(1f / dragSpeed)
+          )
+
+          // Reset translation
+          e2.setLocation(0f, 0f)
+        }
+      }
+
       return true
+    }
+
+    private fun normalize(vector: Vector3): Vector3 {
+      val length = sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z)
+      return Vector3(vector.x / length, vector.y / length, vector.z / length)
     }
   }
 
