@@ -74,7 +74,6 @@ class ReplateCameraView: UIView, ARSessionDelegate {
     override init(frame: CGRect) {
         super.init(frame: frame)
         requestCameraPermissions()
-        //        setupAR()
         ReplateCameraView.INSTANCE = self
     }
 
@@ -82,7 +81,6 @@ class ReplateCameraView: UIView, ARSessionDelegate {
         super.init(coder: coder)
         requestCameraPermissions()
         ReplateCameraView.INSTANCE = self
-        //        setupAR()
     }
 
     static func addRecognizer() {

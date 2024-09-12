@@ -1,7 +1,9 @@
 package com.replatecamera
 
 import android.graphics.Color
+import android.os.Build
 import android.view.View
+import androidx.annotation.RequiresApi
 import com.facebook.react.uimanager.SimpleViewManager
 import com.facebook.react.uimanager.ThemedReactContext
 import com.facebook.react.uimanager.annotations.ReactProp
@@ -9,8 +11,9 @@ import com.facebook.react.uimanager.annotations.ReactProp
 class ReplateCameraViewManager : SimpleViewManager<View>() {
   override fun getName() = "ReplateCameraView"
 
+  @RequiresApi(Build.VERSION_CODES.N)
   override fun createViewInstance(reactContext: ThemedReactContext): View {
-    return View(reactContext)
+    return ReplateCameraView(reactContext)
   }
 
   @ReactProp(name = "color")
