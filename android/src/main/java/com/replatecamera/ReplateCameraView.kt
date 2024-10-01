@@ -170,6 +170,28 @@ class ReplateCameraView @JvmOverloads constructor(
 
   private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
     override fun onScale(detector: ScaleGestureDetector): Boolean {
+      // Ensure ARCore is set up properly
+      if (anchorNode == null) return false
+
+      // Calculate the scale factor from the detector
+      val scale = detector.scaleFactor
+
+      // Remove all spheres from the anchor node
+      arFragment.arSceneView.scene.addOnUpdateListener {
+        spheres.forEach { sphere ->
+          anchorNode?.removeChild(sphere)
+        }
+        spheres.clear()
+
+        // Update the scales for the spheres
+        sphereRadius *= scale
+        sphereCircleRadius *= scale
+        dragSpeed *= scale
+
+        // Recreate spheres (similar to your Swift logic)
+        createSpheres()
+      }
+
       return true
     }
   }
