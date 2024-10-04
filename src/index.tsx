@@ -74,6 +74,14 @@ export function registerOpenedTutorialCallback(callback: () => void) {
   ReplateCameraModule.registerOpenedTutorialCallback(callback);
 }
 
+export function registerTooFarCallback(callback: () => void) {
+  ReplateCameraModule.registerTooFarCallback(callback);
+}
+
+export function registerTooCloseCallback(callback: () => void) {
+  ReplateCameraModule.registerTooCloseCallback(callback);
+}
+
 export function reset() {
   ReplateCameraModule.reset();
 }

@@ -35,6 +35,10 @@ RCT_EXTERN_METHOD(registerCompletedLowerSpheresCallback:(RCTResponseSenderBlock)
 
 RCT_EXTERN_METHOD(registerOpenedTutorialCallback:(RCTResponseSenderBlock)callback)
 
+RCT_EXTERN_METHOD(registerTooCloseCallback:(RCTResponseSenderBlock)callback)
+
+RCT_EXTERN_METHOD(registerTooFarCallback:(RCTResponseSenderBlock)callback)
+
 RCT_EXTERN_METHOD(reset)
 
 + (BOOL)requiresMainQueueSetup

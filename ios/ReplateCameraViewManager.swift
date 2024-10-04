@@ -606,6 +606,8 @@ class ReplateCameraController: NSObject {
   static var completedUpperSpheresCallback: RCTResponseSenderBlock?
   static var completedLowerSpheresCallback: RCTResponseSenderBlock?
   static var openedTutorialCallback: RCTResponseSenderBlock?
+  static var tooCloseCallback: RCTResponseSenderBlock?
+  static var tooFarCallback: RCTResponseSenderBlock?
   
   @objc(registerOpenedTutorialCallback:)
   func registerOpenedTutorialCallback(_ myCallback: @escaping RCTResponseSenderBlock) {
@@ -630,6 +632,16 @@ class ReplateCameraController: NSObject {
   @objc(registerCompletedLowerSpheresCallback:)
   func registerCompletedLowerSpheresCallback(_ myCallback: @escaping RCTResponseSenderBlock) {
     ReplateCameraController.completedLowerSpheresCallback = myCallback
+  }
+  
+  @objc(registerTooCloseCallback:)
+  func registerTooCloseCallback(_ myCallback: @escaping RCTResponseSenderBlock) {
+    ReplateCameraController.tooCloseCallback = myCallback
+  }
+  
+  @objc(registerTooFarCallback:)
+  func registerTooFarCallback(_ myCallback: @escaping RCTResponseSenderBlock) {
+    ReplateCameraController.tooFarCallback = myCallback
   }
   
   @objc(getPhotosCount:rejecter:)
@@ -752,7 +764,7 @@ class ReplateCameraController: NSObject {
             let ciImage = CIImage(cvImageBuffer: image)
             
             // Define the target size for the reduced resolution
-            let targetSize = CGSize(width: 1440, height: 1080) // Change this to your desired resolution
+            let targetSize = CGSize(width: 1728, height: 1296) // Change this to your desired resolution
             
             // Create a scaling filter to resize the image
             let scaleFilter = CIFilter(name: "CILanczosScaleTransform")!
@@ -886,6 +898,29 @@ class ReplateCameraController: NSObject {
     return fileURL
   }
   
+  func isCameraWithinRange(cameraTransform: simd_float4x4, anchorEntity: AnchorEntity, minDistance: Float = 0.15, maxDistance: Float = 0.3) -> Int {
+    // Extract the camera's position from the cameraTransform (simd_float4x4)
+    let cameraPosition = SIMD3<Float>(cameraTransform.columns.3.x, cameraTransform.columns.3.y, cameraTransform.columns.3.z)
+    
+    // Extract the anchor's position from its transform
+    let anchorPosition = anchorEntity.transform.translation
+    
+    // Calculate the Euclidean distance between the camera and the anchor
+    let distance = distanceBetween(cameraPosition, anchorPosition)
+    
+    // Check if the distance is within the range
+    return distance >= minDistance ? -1 : distance <= maxDistance ? 0 : 1
+  }
+  
+  func distanceBetween(_ pos1: SIMD3<Float>, _ pos2: SIMD3<Float>) -> Float {
+    let dx = pos1.x - pos2.x
+    let dy = pos1.y - pos2.y
+    let dz = pos1.z - pos2.z
+    
+    // Return the Euclidean distance
+    return sqrt(dx * dx + dy * dy + dz * dz)
+  }
+  
   func updateSpheres(deviceTargetInFocus: Int, cameraTransform: simd_float4x4, completion: @escaping (Bool) -> Void) {
     // Ensure the function handles a single completion call
     var completionCalled = false
@@ -917,6 +952,15 @@ class ReplateCameraController: NSObject {
       print("[updateSpheres] No current frame available.")
       callCompletion(false)
       return
+    }
+    let cameraDistance = isCameraWithinRange(cameraTransform: cameraTransform, anchorEntity: anchorNode)
+    
+    if(cameraDistance != 0){
+      if(cameraDistance == 1 && ReplateCameraController.tooFarCallback != nil){
+        ReplateCameraController.tooFarCallback!([])
+      }else if(cameraDistance == -1 && ReplateCameraController.tooCloseCallback != nil){
+        ReplateCameraController.tooCloseCallback!([])
+      }
     }
     
     // Calculate the angle between the camera and the anchor
