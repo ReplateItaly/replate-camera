@@ -1,9 +1,15 @@
 import * as React from 'react';
 
 import { StyleSheet, View } from 'react-native';
-import { ReplateCameraView, takePhoto } from 'replate-camera';
+import { ReplateCameraView, reset, takePhoto } from 'replate-camera';
+import { useEffect } from 'react';
 
 export default function App() {
+  useEffect(() => {
+    setTimeout(() => {
+      reset();
+    }, 100);
+  }, []);
   setInterval(() => {
     takePhoto(false)
       .then((uri) => {
